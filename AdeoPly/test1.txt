@@ -1,0 +1,29 @@
+program test1;
+Class perro
+{
+	int: edad,
+	string: color
+};
+var int: total;
+void function sayHi()
+{
+	print("Hello");
+}
+main()
+{
+	var string: nombre;
+	var int: arr[1];
+	if (2 > 1)
+	{
+		read(nombre);
+	}
+	else
+	{
+		sayHi();
+	}
+
+	while (3 < 1)
+	{
+		sayHi();
+	}
+}

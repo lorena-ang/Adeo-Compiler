@@ -106,13 +106,37 @@ lexer = lex.lex()
 
 def p_program(t):
     '''
-    program : PROGRAM ID SEMICOLON p_class p_variables p_function MAIN LPAREN RPAREN p_block
+    program : PROGRAM ID SEMICOLON p_1 p_2 p_3 MAIN LPAREN RPAREN block
     '''
     t[0] = "END"
 
+def p_p_1(t):
+    '''
+    p_1 : class p_1
+        |
+    '''
+
+def p_p_2(t):
+    '''
+    p_2 : variables
+        |
+    '''
+
+def p_p_3(t):
+    '''
+    p_3 : function p_3
+        |
+    '''
+
 def p_block(t):
     '''
-    block : LBRACE block_1 RBRACE
+    block : LBRACE block_v block_1 RBRACE
+    '''
+
+def p_block_v(t):
+    '''
+    block_v : variables
+            |
     '''
 
 def p_block_1(t):
@@ -134,7 +158,7 @@ def p_statement(t):
 
 def p_assignment(t):
     '''
-    assignment : ID ASSIGNOP expression SEMICOLON
+    assignment : var ASSIGNOP expression SEMICOLON
     '''
 
 def p_conditional(t):
@@ -156,7 +180,7 @@ def p_write(t):
 
 def p_write_1(t):
     '''
-    write_1 : EXPRESSION w_1
+    write_1 : expression w_1
             | STRING_CONST w_1
     '''
 
@@ -168,17 +192,17 @@ def p_w_1(t):
 
 def p_read(t):
     '''
-    read : READ LPAREN var RPAREN SEMICOLON
+    read : READ LPAREN ID RPAREN SEMICOLON
     '''
 
 def p_l_while(t):
-    ''''
-    l_while : WHILE LPAREN expr RPAREN block
+    '''
+    l_while : WHILE LPAREN expression RPAREN block
     '''
 
 def p_l_for(t):
     '''
-    l_for : FOR ID ASSIGNOP expr TO expr DO block
+    l_for : FOR ID ASSIGNOP expression TO expr DO block
     '''
 
 def p_f_call(t):
@@ -188,21 +212,27 @@ def p_f_call(t):
 
 def p_f_call_1(t):
     '''
-    f_call_1 : expression
-             | expression COMMA f_call_1
+    f_call_1 : expression f_call_2
+             |
+    '''
+
+def p_f_call_2(t):
+    '''
+    f_call_2 : COMMA expression f_call_1
+             |
     '''
 
 def p_type(t):
     '''
-    type : int
-         | float
-         | string
-         | bool
+    type : INT
+         | FLOAT
+         | STRING
+         | BOOL
     '''
 
 def p_function(t):
     '''
-    function : function_t FUNCTION ID function_p block SEMICOLON
+    function : function_t FUNCTION ID function_p block
     '''
 
 def p_function_t(t):
@@ -230,12 +260,18 @@ def p_params_1(t):
 
 def p_variables(t):
     '''
-    variables : VAR type COLON ID array variables_1 SEMICOLON
+    variables : variables_1
     '''
 
 def p_variables_1(t):
     '''
-    variables_1 : COMMA ID array variables_1
+    variables_1 : VAR type COLON ID array variables_2 SEMICOLON variables_1
+                |
+    '''
+
+def p_variables_2(t):
+    '''
+    variables_2 : COMMA ID array variables_2
                 |
     '''
 
