@@ -34,6 +34,7 @@ keywords = {
 tokens = list(keywords.values()) + [ 
     'ID',
     'RELOP',
+    'EQOP',
     'AND',
     'OR',
     'SEMICOLON',
@@ -57,7 +58,8 @@ tokens = list(keywords.values()) + [
 ]
 
 # Tokens
-t_RELOP = r'([<>]=?|[!=]=)'
+t_RELOP = r'([<>]=?)'
+t_EQOP = r'([!=]=)'
 t_AND = r'\&\&'
 t_OR = r'\|\|'
 t_SEMICOLON = r'\;'
@@ -77,7 +79,7 @@ t_RBRACK = r'\]'
 t_ASSIGNOP = r'\='
 t_INT_CONST = r'[+-]?[0-9]+'
 t_FLOAT_CONST = r'[+-]?[0-9]+\.[0-9]+'
-t_STRING_CONST = r'\"([^\\\n]|(\\.))*?\"'
+t_STRING_CONST = r'\"[^\"]*\"'
 
 # Functions
 
@@ -118,7 +120,7 @@ def p_p_1(t):
 
 def p_p_2(t):
     '''
-    p_2 : variables
+    p_2 : variables p_2
         |
     '''
 
@@ -130,13 +132,7 @@ def p_p_3(t):
 
 def p_block(t):
     '''
-    block : LBRACE block_v block_1 RBRACE
-    '''
-
-def p_block_v(t):
-    '''
-    block_v : variables
-            |
+    block : LBRACE p_2 block_1 RBRACE
     '''
 
 def p_block_1(t):
@@ -153,7 +149,8 @@ def p_statement(t):
               | read
               | l_while
               | l_for
-              | f_call
+              | f_call SEMICOLON
+              | return
     '''
 
 def p_assignment(t):
@@ -192,7 +189,7 @@ def p_w_1(t):
 
 def p_read(t):
     '''
-    read : READ LPAREN ID RPAREN SEMICOLON
+    read : READ LPAREN var RPAREN SEMICOLON
     '''
 
 def p_l_while(t):
@@ -207,7 +204,7 @@ def p_l_for(t):
 
 def p_f_call(t):
     '''
-    f_call : ID LPAREN f_call_1 RPAREN SEMICOLON
+    f_call : ID LPAREN f_call_1 RPAREN
     '''
 
 def p_f_call_1(t):
@@ -218,8 +215,13 @@ def p_f_call_1(t):
 
 def p_f_call_2(t):
     '''
-    f_call_2 : COMMA expression f_call_1
+    f_call_2 : COMMA expression f_call_2
              |
+    '''
+
+def p_return(t):
+    '''
+    return : RETURN expression SEMICOLON
     '''
 
 def p_type(t):
@@ -260,18 +262,13 @@ def p_params_1(t):
 
 def p_variables(t):
     '''
-    variables : variables_1
+    variables : VAR type COLON ID array variables_1 SEMICOLON
+              | VAR ID COLON ID array variables_1 SEMICOLON
     '''
 
 def p_variables_1(t):
     '''
-    variables_1 : VAR type COLON ID array variables_2 SEMICOLON variables_1
-                |
-    '''
-
-def p_variables_2(t):
-    '''
-    variables_2 : COMMA ID array variables_2
+    variables_1 : COMMA ID array variables_1
                 |
     '''
 
@@ -299,27 +296,47 @@ def p_class_1(t):
             |
     '''
 
+def p_bool_const(t):
+    '''
+    bool_const : BOOL_CONSTANT_TRUE
+               | BOOL_CONSTANT_FALSE
+    '''
+
+def p_const(t):
+    '''
+    const : INT_CONST
+          | FLOAT_CONST
+          | STRING_CONST
+          | bool_const
+    '''
+
 def p_expression(t):
     '''
-    expression : sub_expr e_1
+    expression : sub_expr_e e_1
     '''
 
 def p_e_1(t):
     '''
-    e_1 : AND sub_expr e_1
-        | OR sub_expr e_1
+    e_1 : AND sub_expr_e e_1
+        | OR sub_expr_e e_1
         |
     '''
 
-def p_sub_expr(t):
+def p_sub_expr_e(t):
     '''
-    sub_expr : expr sub_expr_1
+    sub_expr_e : sub_expr_r e_2
     '''
 
-def p_sub_expr_1(t):
+def p_e_2(t):
     '''
-    sub_expr_1 : RELOP expr
-               |
+    e_2 : EQOP sub_expr_r e_2
+        |
+    '''
+
+def p_sub_expr_r(t):
+    '''
+    sub_expr_r : expr
+               | expr RELOP expr
     '''
 
 def p_expr(t):
@@ -350,8 +367,8 @@ def p_factor(t):
     '''
     factor : LPAREN expr RPAREN
            | var
-           | INT_CONST
-           | FLOAT_CONST
+           | const
+           | f_call
     '''
 
 # Syntax error

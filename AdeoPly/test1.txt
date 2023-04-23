@@ -1,31 +1,63 @@
 program test1;
-Class perro
+
+Class Perro
 {
 	int: edad,
 	string: color
 };
-var int: total;
-void function sayHi()
+
+var int: totalPerros;
+
+void function printPerro(int edadPerro, string colorPerro)
 {
-	print("Hello");
+	print("Edad", edadPerro);
+	print("Color", colorPerro);
 }
+
+int function addYear(int edadPerro)
+{
+	edadPerro = edadPerro + 1;
+	return edadPerro;
+}
+
 main()
 {
-	var string: nombre;
-	var int: num, arr[1];
-	num = 1;
-	if (2 > 1)
+	var string: frase1;
+	var int: i, tempEdad, contEdad;
+	var Perro: perro;
+
+	print("Ingresa la edad del perro: ");
+	read(perro.edad);
+	perro.color = "rojo";
+
+	frase1 = "El perro es un cachorro.";
+
+	if (perro.edad < 1)
 	{
-		read(nombre);
+		print(frase1);
+	}
+	elseif (perro.edad < 8)
+	{
+		print("El perro es un adulto.");
 	}
 	else
 	{
-		sayHi();
+		print("El perro es senior.");
 	}
 
-	while (3 < 1)
+	for i = 1 to 5 do
 	{
-		num = num + 1;
+		totalPerros = totalPerros + 10;
 	}
-	print(num);
+
+	tempEdad = perro.edad;
+	contEdad = 0;
+
+	while (tempEdad <= 20)
+	{
+		tempEdad = addYear(tempEdad);
+		contEdad = contEdad + 1;
+	}
+
+	printPerro(perro.edad, perro.color);
 }
