@@ -22,7 +22,7 @@ int function addYear(int edadPerro)
 
 main()
 {
-	var string: frase1;
+	var string: frase1, frase2;
 	var int: i, tempEdad, contEdad;
 	var Perro: perro;
 
@@ -30,7 +30,8 @@ main()
 	read(perro.edad);
 	perro.color = "rojo";
 
-	frase1 = "El perro es un cachorro.";
+	frase1 = "El perro es un ";
+	frase2 = frase1 + "cachorro.";
 
 	if (perro.edad < 1)
 	{
