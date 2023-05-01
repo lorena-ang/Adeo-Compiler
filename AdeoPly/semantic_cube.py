@@ -96,9 +96,9 @@ class SemanticCube:
             },
         }
 
-    def get_type(self, left: str, oper: str, right: str) -> str:
+    def get_type(self, left: str, operation: str, right: str) -> str:
         try:
-            result = self.semantic_cube[left][oper][right]
+            result = self.semantic_cube[left][operation][right]
         except KeyError as e:
             raise TypeError("Type mismatch error: Operand doesn't match data type.") from None
         return result
