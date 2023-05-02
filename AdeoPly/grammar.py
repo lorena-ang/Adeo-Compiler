@@ -5,6 +5,13 @@
 # -----------------------------------------------------------------------------
 
 import sys
+from variable_table import VariableTable
+from quadruples import Quadruples
+from semantic_cube import SemanticCube
+
+#
+# LEXER
+#
 
 keywords = {
     'program' :'PROGRAM',
@@ -104,12 +111,23 @@ def t_error(t):
 import ply.lex as lex
 lexer = lex.lex()
 
+#
+# PARSER
+#
+
+scope = "global"
+semantic_cube = SemanticCube()
+variable_table = VariableTable()
+quadruples = Quadruples()
+
 # Parsing rules
 
 def p_program(t):
     '''
     program : PROGRAM ID SEMICOLON p_1 p_2 p_3 MAIN LPAREN RPAREN block
     '''
+    variable_table.print()
+    quadruples.print()
     t[0] = "END"
 
 def p_p_1(t):
@@ -174,18 +192,21 @@ def p_write(t):
     '''
     write : PRINT LPAREN write_1 RPAREN SEMICOLON
     '''
+    elements = t[3]
+    for elem in elements:
+        quadruples.add(("PRINT", elem, None, None))
 
 def p_write_1(t):
     '''
-    write_1 : expression w_1
-            | STRING_CONST w_1
+    write_1 : expression COMMA write_1
+            | STRING_CONST COMMA write_1
+            | expression
+            | STRING_CONST
     '''
-
-def p_w_1(t):
-    '''
-    w_1 : COMMA write_1
-        |
-    '''
+    if len(t) == 4:
+        t[0] = [t[1], *t[3]]
+    else:
+        t[0] = [t[1]]
 
 def p_read(t):
     '''
@@ -231,6 +252,7 @@ def p_type(t):
          | STRING
          | BOOL
     '''
+    t[0] = t[1]
 
 def p_function(t):
     '''
@@ -242,6 +264,7 @@ def p_function_t(t):
     function_t : type
                | VOID
     '''
+    t[0] = t[1]
 
 def p_function_p(t):
     '''
@@ -265,12 +288,20 @@ def p_variables(t):
     variables : VAR type COLON ID array variables_1 SEMICOLON
               | VAR ID COLON ID array variables_1 SEMICOLON
     '''
-
+    type = t[2]
+    names = [t[4], *t[6]]
+    for name in names:
+        variable_table.add(name, type, scope, 0)
+            
 def p_variables_1(t):
     '''
     variables_1 : COMMA ID array variables_1
                 |
     '''
+    if len(t) == 5:
+        t[0] = [t[2], *t[4]]
+    else:
+        t[0] = []
 
 def p_array(t):
     '''
@@ -278,12 +309,15 @@ def p_array(t):
           | LBRACK INT_CONST RBRACK LBRACK INT_CONST RBRACK
           |
     '''
+    t[0] = []
 
 def p_var(t):
     '''
     var : ID array
         | ID DOT ID
     '''
+    if len(t) == 3:
+        t[0] = t[1]
 
 def p_class(t):
     '''
@@ -296,19 +330,39 @@ def p_class_1(t):
             |
     '''
 
+def p_const(t):
+    '''
+    const : int_const
+          | float_const
+          | string_const
+          | bool_const
+    '''
+    t[0] = t[1]
+
+def p_int_const(t):
+    '''
+    int_const : INT_CONST
+    '''
+    t[0] = ("int", t[1])
+
+def p_float_const(t):
+    '''
+    float_const : FLOAT_CONST
+    '''
+    t[0] = ("float", t[1])
+
+def p_string_const(t):
+    '''
+    string_const : STRING_CONST
+    '''
+    t[0] = ("string", t[1])
+
 def p_bool_const(t):
     '''
     bool_const : BOOL_CONSTANT_TRUE
                | BOOL_CONSTANT_FALSE
     '''
-
-def p_const(t):
-    '''
-    const : INT_CONST
-          | FLOAT_CONST
-          | STRING_CONST
-          | bool_const
-    '''
+    t[0] = ("bool", t[1])
 
 def p_expression(t):
     '''
@@ -395,3 +449,6 @@ if __name__ == '__main__':
             print(e)
     else:
         print("ERROR: Filename not added correctly.")
+
+# memoria
+# que nombre del scope esté en la tabla de variables (diccionario con llave de scope y contenido sea tabla de variables) (que el scope no esté en la variable)

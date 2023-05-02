@@ -8,12 +8,16 @@ class Variable:
         name: str,
         type: str,
         scope: str,
-        address: int,
+        address: int
     ):
         self.name = name
         self.type = type
         self.scope = scope
         self.address = address
+    
+    # DELETE: Print for debugging
+    def __str__(self) -> str:
+        return f"<name:{self.name},type:{self.type},scope:{self.scope},address:{self.address}>"
 
 class VariableTable:
     dir: dict[str, Variable]
@@ -24,12 +28,13 @@ class VariableTable:
         self,
         name: str,
         type: str,
+        scope: str,
         address: int = 0,
     ) -> Variable:
         if name in self.dir:
             raise Exception(f"A variable with the name '{name}' already exists in variable table.")
         else:
-            self.dir[name] = Variable(name, type, address)
+            self.dir[name] = Variable(name, type, scope, address)
         return self.dir[name]
 
     def get_variable(self, address: int) -> Variable:
@@ -37,6 +42,13 @@ class VariableTable:
             if var.address == address:
                 return var
         raise Exception(f"The variable with the address '{address}' does not exist.")
+
+     # DELETE: Change to address
+    def get_variable(self, name: str) -> Variable:
+        if name in self.dir:
+            return self.dir[name].type
+        else:    
+            raise Exception(f"The variable with the name '{name}' does not exist.")
 
     # DELETE: Print for debugging
     def __str__(self) -> str:
@@ -46,8 +58,7 @@ class VariableTable:
         return var_info
 
     # DELETE: Print for debugging
-    def print(self, table_name: str) -> None:
-        print(f"# {table_name}")
+    def print(self) -> None:
         var_list = self.__str__().split("\n")
         for val in var_list:
             print(f"# {val}")

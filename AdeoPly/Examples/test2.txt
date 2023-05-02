@@ -1,0 +1,11 @@
+program test2;
+
+var int: i1, i2, i3;
+var float: f1, f2, f3;
+var string: s1;
+
+main()
+{
+    var int: i4, i5;
+    var float: f4;
+}
