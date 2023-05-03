@@ -98,7 +98,7 @@ class MemoryManager:
         try:
             return buffer.values.index(value) + buffer.initial_address
         except ValueError:
-            print("Error trying to access the memory space for value " + value)
+            print("Value " + str(value) + " was not found, so it was added.")
 
     def clear(self) -> None:
         self.ints.values.clear()

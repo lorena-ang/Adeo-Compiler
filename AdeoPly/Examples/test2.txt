@@ -8,4 +8,8 @@ main()
 {
     var int: i4, i5;
     var float: f4;
+
+    print(1);
+    print(2);
+    print(3);
 }

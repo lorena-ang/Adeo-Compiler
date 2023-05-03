@@ -7,6 +7,7 @@
 import sys
 from memory_manager import MemoryManager
 from variable_table import VariableTable
+from function_directory import FunctionDirectory
 from quadruples import Quadruples
 from semantic_cube import SemanticCube
 
@@ -120,6 +121,7 @@ scope = "global"
 global_memory_manager = MemoryManager(0)
 semantic_cube = SemanticCube()
 variable_table = VariableTable()
+function_directory = FunctionDirectory()
 quadruples = Quadruples()
 
 # Parsing rules
@@ -163,7 +165,7 @@ def p_block_1(t):
 
 def p_statement(t):
     '''
-    statement : assignment
+    statement : assignment SEMICOLON
               | conditional
               | write
               | read
@@ -171,11 +173,6 @@ def p_statement(t):
               | l_for
               | f_call SEMICOLON
               | return
-    '''
-
-def p_assignment(t):
-    '''
-    assignment : var ASSIGNOP expression SEMICOLON
     '''
 
 def p_conditional(t):
@@ -196,7 +193,10 @@ def p_write(t):
     '''
     elements = t[3]
     for elem in elements:
-        quadruples.add(("PRINT", elem, None, None))
+        if elements is not None:
+            quadruples.add(("PRINT", elem[1], None, None))
+        else:
+            raise Exception("No variable found with that id.")
 
 def p_write_1(t):
     '''
@@ -316,10 +316,11 @@ def p_array(t):
 
 def p_var(t):
     '''
-    var : ID array
+    var : ID
         | ID DOT ID
+        | ID array
     '''
-    if len(t) == 3:
+    if len(t) == 2:
         t[0] = t[1]
 
 def p_class(t):
@@ -346,86 +347,84 @@ def p_int_const(t):
     '''
     int_const : INT_CONST
     '''
-    t[0] = ("int", t[1])
+    value = int(t[1])
+    address = global_memory_manager.find(value)
+    if address is None:
+        address = global_memory_manager.append(value)
+    t[0] = ("int", address)
 
 def p_float_const(t):
     '''
     float_const : FLOAT_CONST
     '''
-    t[0] = ("float", t[1])
+    value = float(t[1])
+    address = global_memory_manager.find(value)
+    if address is None:
+        address = global_memory_manager.append(value)
+    t[0] = ("float", address)
 
 def p_string_const(t):
     '''
     string_const : STRING_CONST
     '''
-    t[0] = ("string", t[1])
+    value = str(t[1])
+    address = global_memory_manager.find(value)
+    if address is None:
+        address = global_memory_manager.append(value)
+    t[0] = ("string", address)
 
 def p_bool_const(t):
     '''
     bool_const : BOOL_CONSTANT_TRUE
                | BOOL_CONSTANT_FALSE
     '''
-    t[0] = ("bool", t[1])
+    if t[1] == "true":
+        value = True
+    else:
+        value = False
+    address = global_memory_manager.find(value)
+    if address is None:
+        address = global_memory_manager.append(value)
+    t[0] = ("bool", address)
 
-def p_expression(t):
-    '''
-    expression : sub_expr_e e_1
-    '''
 
-def p_e_1(t):
+def p_unique_expression(t):
     '''
-    e_1 : AND sub_expr_e e_1
-        | OR sub_expr_e e_1
-        |
-    '''
-
-def p_sub_expr_e(t):
-    '''
-    sub_expr_e : sub_expr_r e_2
-    '''
-
-def p_e_2(t):
-    '''
-    e_2 : EQOP sub_expr_r e_2
-        |
-    '''
-
-def p_sub_expr_r(t):
-    '''
+    expression : sub_expr_e
+    sub_expr_e : sub_expr_r
     sub_expr_r : expr
-               | expr RELOP expr
+    expr : term
+    term : factor
+    factor : var
+           | const
+           | f_call
     '''
+    t[0] = t[1]
 
-def p_expr(t):
+def p_operations(t):
     '''
-    expr : term expr_1
+    assignment : var ASSIGNOP assignment
+               | var ASSIGNOP expression
+    expression : expression AND sub_expr_e
+               | expression OR sub_expr_e
+    sub_expr_e : sub_expr_e EQOP sub_expr_r
+    sub_expr_r : sub_expr_r RELOP expr
+    expr : expr PLUS term
+         | expr MINUS term
+    term : term TIMES factor
+         | term DIVIDE factor
     '''
-
-def p_expr_1(t):
-    '''
-    expr_1 : PLUS term expr_1
-           | MINUS term expr_1
-           |
-    '''
-
-def p_term(t):
-    '''
-    term : factor term_1
-    '''
-
-def p_term_1(t):
-    '''
-    term_1 : TIMES factor term_1
-           | DIVIDE factor term_1
-           |
-    '''
+    left_type, left_address = t[1]
+    right_type, right_address = t[3]
+    operation = t[2]
+    result_type = semantic_cube.get_type(left_type, "=", right_type)
+    if operation == "=":
+        quadruples.add(("=", right_address, None, left_address))
+        t[0] = (result_type, left_address)
 
 def p_factor(t):
     '''
     factor : LPAREN expr RPAREN
-           | var
-           | const
-           | f_call
     '''
 
 # Syntax error

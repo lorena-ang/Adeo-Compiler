@@ -43,13 +43,6 @@ class VariableTable:
                 return var
         raise Exception(f"The variable with the address '{address}' does not exist.")
 
-     # DELETE: Change to address
-    def get_variable(self, name: str) -> Variable:
-        if name in self.dir:
-            return self.dir[name].type
-        else:    
-            raise Exception(f"The variable with the name '{name}' does not exist.")
-
     # DELETE: Print for debugging
     def __str__(self) -> str:
         var_info = ""
