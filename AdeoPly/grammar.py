@@ -5,6 +5,7 @@
 # -----------------------------------------------------------------------------
 
 import sys
+from memory_manager import MemoryManager
 from variable_table import VariableTable
 from quadruples import Quadruples
 from semantic_cube import SemanticCube
@@ -38,7 +39,7 @@ keywords = {
     'main' : 'MAIN'
 }
 
-tokens = list(keywords.values()) + [ 
+tokens = list(keywords.values()) + [
     'ID',
     'RELOP',
     'EQOP',
@@ -116,6 +117,7 @@ lexer = lex.lex()
 #
 
 scope = "global"
+global_memory_manager = MemoryManager(0)
 semantic_cube = SemanticCube()
 variable_table = VariableTable()
 quadruples = Quadruples()
@@ -291,7 +293,8 @@ def p_variables(t):
     type = t[2]
     names = [t[4], *t[6]]
     for name in names:
-        variable_table.add(name, type, scope, 0)
+        address = global_memory_manager.reserve(type)
+        variable_table.add(name, type, scope, address)
             
 def p_variables_1(t):
     '''
