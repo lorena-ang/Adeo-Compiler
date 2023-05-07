@@ -5,9 +5,10 @@
 # -----------------------------------------------------------------------------
 
 import sys
+from variable_table import Variable
 from memory_manager import MemoryManager
-from variable_table import VariableTable
 from function_directory import FunctionDirectory
+from stack import Context, Stack
 from quadruples import Quadruples
 from semantic_cube import SemanticCube
 
@@ -26,8 +27,8 @@ keywords = {
     'if' : 'IF',
     'else' : 'ELSE',
     'elseif' : 'ELSEIF',
-    'true' : 'BOOL_CONSTANT_TRUE',
-    'false' : 'BOOL_CONSTANT_FALSE',
+    'true' : 'TRUE',
+    'false' : 'FALSE',
     'Class' : 'CLASS',
     'while' : 'WHILE',
     'for' : 'FOR',
@@ -117,12 +118,16 @@ lexer = lex.lex()
 # PARSER
 #
 
-scope = "global"
-global_memory_manager = MemoryManager(0)
-semantic_cube = SemanticCube()
-variable_table = VariableTable()
+data_memory_manager = MemoryManager(0)
+constant_memory_manager = MemoryManager(4000)
+temporal_memory_manager = MemoryManager(8000)
 function_directory = FunctionDirectory()
 quadruples = Quadruples()
+
+context_stack = Stack()
+context_stack.push(Context("global", data_memory_manager))
+
+jump_stack: list[int] = []
 
 # Parsing rules
 
@@ -130,8 +135,11 @@ def p_program(t):
     '''
     program : PROGRAM ID SEMICOLON p_1 p_2 p_3 MAIN LPAREN RPAREN block
     '''
-    variable_table.print()
+    data_memory_manager.print("Global")
+    constant_memory_manager.print("Constant")
+    temporal_memory_manager.print("Temporal")
     quadruples.print()
+    # context_stack.print()
     t[0] = "END"
 
 def p_p_1(t):
@@ -179,7 +187,7 @@ def p_conditional(t):
     '''
     conditional : IF LPAREN expression RPAREN block conditional_1
     '''
-
+    
 def p_conditional_1(t):
     '''
     conditional_1 : ELSEIF LPAREN expression RPAREN block conditional_1
@@ -194,16 +202,18 @@ def p_write(t):
     elements = t[3]
     for elem in elements:
         if elements is not None:
-            quadruples.add(("PRINT", elem[1], None, None))
+            if type(elem) == tuple:
+                quadruples.add_quad(("PRINT", elem[1], None, None))
+            elif type(elem) == Variable:
+                address = elem.address
+                quadruples.add_quad(("PRINT", address, None, None))
         else:
-            raise Exception("No variable found with that id.")
+            raise Exception("The data to be printed is invalid")
 
 def p_write_1(t):
     '''
     write_1 : expression COMMA write_1
-            | STRING_CONST COMMA write_1
             | expression
-            | STRING_CONST
     '''
     if len(t) == 4:
         t[0] = [t[1], *t[3]]
@@ -214,6 +224,12 @@ def p_read(t):
     '''
     read : READ LPAREN var RPAREN SEMICOLON
     '''
+    if t[3] is not None:
+            variable = t[3]
+            address = variable.address
+            quadruples.add_quad(("READ", address, None, None))
+    else:
+        raise Exception(f"There is no variable named '{t[3]}'.")
 
 def p_l_while(t):
     '''
@@ -247,15 +263,6 @@ def p_return(t):
     return : RETURN expression SEMICOLON
     '''
 
-def p_type(t):
-    '''
-    type : INT
-         | FLOAT
-         | STRING
-         | BOOL
-    '''
-    t[0] = t[1]
-
 def p_function(t):
     '''
     function : function_t FUNCTION ID function_p block
@@ -284,6 +291,15 @@ def p_params_1(t):
     params_1 : COMMA type ID params_1
              |
     '''
+    
+def p_type(t):
+    '''
+    type : INT
+         | FLOAT
+         | STRING
+         | BOOL
+    '''
+    t[0] = t[1]
 
 def p_variables(t):
     '''
@@ -291,11 +307,10 @@ def p_variables(t):
               | VAR ID COLON ID array variables_1 SEMICOLON
     '''
     type = t[2]
-    names = [t[4], *t[6]]
-    for name in names:
-        address = global_memory_manager.reserve(type)
-        variable_table.add(name, type, scope, address)
-            
+    variables = [t[4], *t[6]]
+    for var in variables:
+        context_stack.add_variable_to_stack(var, type)
+
 def p_variables_1(t):
     '''
     variables_1 : COMMA ID array variables_1
@@ -312,7 +327,6 @@ def p_array(t):
           | LBRACK INT_CONST RBRACK LBRACK INT_CONST RBRACK
           |
     '''
-    t[0] = []
 
 def p_var(t):
     '''
@@ -320,8 +334,12 @@ def p_var(t):
         | ID DOT ID
         | ID array
     '''
-    if len(t) == 2:
-        t[0] = t[1]
+    if len(t) == 3 and t[2] is None:
+        variable = context_stack.get_variable_from_context(t[1])
+        if variable is not None:
+            t[0] = variable
+    else:
+        pass
 
 def p_class(t):
     '''
@@ -348,9 +366,9 @@ def p_int_const(t):
     int_const : INT_CONST
     '''
     value = int(t[1])
-    address = global_memory_manager.find(value)
+    address = constant_memory_manager.find_address(value)
     if address is None:
-        address = global_memory_manager.append(value)
+        address = constant_memory_manager.add_value_to_memory(value)
     t[0] = ("int", address)
 
 def p_float_const(t):
@@ -358,9 +376,9 @@ def p_float_const(t):
     float_const : FLOAT_CONST
     '''
     value = float(t[1])
-    address = global_memory_manager.find(value)
+    address = constant_memory_manager.find_address(value)
     if address is None:
-        address = global_memory_manager.append(value)
+        address = constant_memory_manager.add_value_to_memory(value)
     t[0] = ("float", address)
 
 def p_string_const(t):
@@ -368,27 +386,41 @@ def p_string_const(t):
     string_const : STRING_CONST
     '''
     value = str(t[1])
-    address = global_memory_manager.find(value)
+    address = constant_memory_manager.find_address(value)
     if address is None:
-        address = global_memory_manager.append(value)
+        address = constant_memory_manager.add_value_to_memory(value)
     t[0] = ("string", address)
 
 def p_bool_const(t):
     '''
-    bool_const : BOOL_CONSTANT_TRUE
-               | BOOL_CONSTANT_FALSE
+    bool_const : TRUE
+               | FALSE
     '''
-    if t[1] == "true":
-        value = True
-    else:
-        value = False
-    address = global_memory_manager.find(value)
+    value = str(t[1])
+    address = constant_memory_manager.find_address(value)
     if address is None:
-        address = global_memory_manager.append(value)
+        address = constant_memory_manager.add_value_to_memory(value)
     t[0] = ("bool", address)
+    
+def p_assignment(t):
+    '''
+    assignment : var ASSIGNOP assignment
+               | var ASSIGNOP expression
+    '''
+    left_type, left_address = t[1].process_variable()
+    left_name = t[1].name
+    if type(t[3]) is tuple:
+        right_type, right_address = t[3]
+    else:
+        right_type, right_address = t[3].process_variable()
+    operation_type = SemanticCube().get_result_type(left_type, t[2], right_type)
+    if left_name is not None and context_stack.check_variable_exists(left_name):
+            quadruples.add_quad(("=", right_address, None, left_address))
+            t[0] = (operation_type, left_address)
+    else:
+        raise Exception(f"Only variables may be assigned to.")
 
-
-def p_unique_expression(t):
+def p_expr_unique(t):
     '''
     expression : sub_expr_e
     sub_expr_e : sub_expr_r
@@ -398,13 +430,15 @@ def p_unique_expression(t):
     factor : var
            | const
            | f_call
+           | LPAREN expr RPAREN
     '''
-    t[0] = t[1]
+    if len(t) == 2:
+        t[0] = t[1]
+    else:
+        t[0] = t[2]
 
-def p_operations(t):
+def p_expr_operations(t):
     '''
-    assignment : var ASSIGNOP assignment
-               | var ASSIGNOP expression
     expression : expression AND sub_expr_e
                | expression OR sub_expr_e
     sub_expr_e : sub_expr_e EQOP sub_expr_r
@@ -414,18 +448,18 @@ def p_operations(t):
     term : term TIMES factor
          | term DIVIDE factor
     '''
-    left_type, left_address = t[1]
-    right_type, right_address = t[3]
-    operation = t[2]
-    result_type = semantic_cube.get_type(left_type, "=", right_type)
-    if operation == "=":
-        quadruples.add(("=", right_address, None, left_address))
-        t[0] = (result_type, left_address)
-
-def p_factor(t):
-    '''
-    factor : LPAREN expr RPAREN
-    '''
+    if type(t[1]) is tuple:
+        left_type, left_address = t[1]
+    else:
+        left_type, left_address = t[1].process_variable()
+    if type(t[3]) is tuple:
+        right_type, right_address = t[3]
+    else:
+        right_type, right_address = t[3].process_variable()
+    operation_type = SemanticCube().get_result_type(left_type, t[2], right_type)
+    address = temporal_memory_manager.reserve_space(operation_type)
+    quadruples.add_quad((t[2], left_address, right_address, address))
+    t[0] = (operation_type, address)
 
 # Syntax error
 def p_error(t):
@@ -444,13 +478,10 @@ if __name__ == '__main__':
             with open(name, 'r') as file:
                 file_content = file.read()
                 if parser.parse(file_content) == "END":
-                    print("The data from the .txt file is valid for Adeo language.")
+                    print("\nThe data from the .txt file is valid for Adeo language.")
                 else:
-                    print("The data from the .txt file is invalid for Adeo language.")
+                    print("\nThe data from the .txt file is invalid for Adeo language.")
         except (EOFError, FileNotFoundError) as e:
             print(e)
     else:
         print("ERROR: Filename not added correctly.")
-
-# memoria
-# que nombre del scope esté en la tabla de variables (diccionario con llave de scope y contenido sea tabla de variables) (que el scope no esté en la variable)

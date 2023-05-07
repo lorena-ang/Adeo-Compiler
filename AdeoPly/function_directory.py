@@ -1,86 +1,61 @@
 from typing import Tuple
+from stack import Context
 
 class Function():
     name: str
-    type: str
-    scope: str
-    address: int
-    parameters: list[Tuple[str, int, str]]
-    has_return: bool
+    initial_quad_address: int
+    resources: Tuple[int, int, int, int] # resources = (ints, floats, bools, strings)
+    return_type: str
     return_address: int
-    start_quad: int
+    address: int
+    context: Context
+    parameters: list[str] # str = type of var --> ["int", "float", "int"]
 
-    def __init__(
-        self,
-        name: str,
-        type: str,
-        scope: str,
-        address: int,
-        return_address: int = 0,
-    ):
+    def __init__(self, name: str, return_type: str, address: int, context: Context, return_address: int = 0):
         self.name = name
-        self.type = type
-        self.scope = scope
-        self.address = address
-        self.parameters = []
-        self.has_return = False
+        self.return_type = return_type
         self.return_address = return_address
-
-    # DELETE: Print for debugging
-    def __str__(self) -> str:
-        return f"{self.name},{self.start_quad},{self.__resources_str()}"
-
-    # DELETE: Print for debugging
-    def __str__(self) -> str:
-        """
-        Stringify the resources' information for operations.
-        """
-        return super().__str__()
+        self.address = address
+        self.context = context
+        self.parameters = []
+        self.resources = (0, 0, 0, 0)
 
 class FunctionDirectory():
     dir: dict[str, Function]
+    
     def __init__(self) -> None:
         self.dir = {}
 
-    def add(
-        self,
-        name: str,
-        scope: str,
-        address: int,
-        return_type: str,
-        return_address: int,
-    ) -> Function:
-        if self.contains(name):
-            raise Exception(f"A function with the name '{name}' already exists in the function directory.")
-        else:
-            self.dir[name] = Function(
-                name,
-                scope,
-                address,
-                return_type,
-                return_address,
-            )
-            return self.dir[name]
-        
-    def get(self, name: str) -> Function:
-        if (func := self.get(name)) is not None:
-            return func
+    # Get the information for a function in the directory
+    def get_function_from_directory(self, name: str) -> Function:
+        if (function := self.get_function(name)) is not None:
+            return function
         else:
             raise Exception(f"The information for function '{name}' does not exist.")
 
-    def contains(self, name: str) -> bool:
-        if self.get(name) is None:
+    # Check if a function exists in the directory
+    def check_function_exists(self, name: str) -> bool:
+        if self.get_function(name) is None:
             return False
         else:
             return True
 
+    # Add a funcion to function directory
+    def add_function_to_directory(self, name: str, return_type: str, return_address: int, address: int, context: Context) -> Function:
+        if self.check_function_exists(name):
+            raise Exception(f"A function with the name '{name}' already exists in the function directory.")
+        else:
+            self.dir[name] = Function(name, context, address, return_type, return_address)
+            return self.dir[name]
+
     # DELETE: Print for debugging
     def print(self) -> None:
+        print("\n----Function Directory----")
         for key, value in self.dir.items():
-            print(f"# Function: {key}")
-            print(f"# Address: {value.address}")
-            print(f"# Return type: {value.type}")
-            print(f"# Return address: {value.return_address}")
-            print(f"# Parameters: {[param for param in value.param_list]}")
-            print(f"# Start quadruple: {value.start_quad}")
-        print(value)
+            print(f"Function: {key}")
+            print(f"Address: {value.address}")
+            print(f"Return type: {value.type}")
+            print(f"Return address: {value.return_address}")
+            print(f"Parameters: {[param for param in value.param_list]}")
+            print(f"Start quadruple: {value.start_quad}")
+            print(value)

@@ -1,104 +1,64 @@
 class SemanticCube:
-    semantic_cube: dict[str, dict[str, dict[str, str]]]
+    semantic_cube = {
+        0: {
+            "+": {0: 0, 1: 1},
+            "-": {0: 0, 1: 1},
+            "/": {0: 0, 1: 1},
+            "*": {0: 0, 1: 1},
+            ">": {0: 3},
+            ">=": {0: 3},
+            "<": {0: 3},
+            "<=": {0: 3},
+            "==": {0: 3},
+            "!=": {0: 3},
+            "=": {0: 0},
+        },
+        1: {
+            "+": {0: 1, 1: 1},
+            "-": {0: 1, 1: 1},
+            "/": {0: 1, 1: 1},
+            "*": {0: 1, 1: 1},
+            "<": {1: 3},
+            ">": {1: 3},
+            "<=": {1: 3},
+            ">=": {1: 3},
+            "!=": {1: 3},
+            "==": {1: 3},
+            "=": {1: 1},
+        },
+        2: {
+            "+": {2: 2},
+            "!=": {2: 3},
+            "==": {2: 3},
+            "=": {2: 2},
+        },
+        3: {
+            "!=": {3: 2},
+            "==": {3: 3},
+            "&&": {3: 3},
+            "||": {3: 3},
+            "=": {3: 3},
+        },
+    }
 
-    def __init__(self):
-        self.semantic_cube = {
-            "int": {
-                "+": {
-                    "int": "int",
-                    "float": "float",
-                },
-                "-": {
-                    "int": "int",
-                    "float": "float",
-                },
-                "/": {
-                    "int": "int",
-                    "float": "float",
-                },
-                "*": {
-                    "int": "int",
-                    "float": "float",
-                },
-                ">": {
-                    "int": "bool",
-                },
-                ">=": {
-                    "int": "bool",
-                },
-                "<": {
-                    "int": "bool",
-                },
-                "<=": {
-                    "int": "bool",
-                },
-                "==": {
-                    "int": "bool",
-                },
-                "!=": {
-                    "int": "bool",
-                },
-                "=": {
-                    "int": "int",
-                },
-            },
-            "float": {
-                "+": {
-                    "int": "float",
-                    "float": "float",
-                },
-                "-": {
-                    "int": "float",
-                    "float": "float",
-                },
-                "/": {
-                    "int": "float",
-                    "float": "float",
-                },
-                "*": {
-                    "int": "float",
-                    "float": "float",
-                },
-                "<": {
-                    "float": "bool",
-                },
-                ">": {
-                    "float": "bool",
-                },
-                "<=": {
-                    "float": "bool",
-                },
-                ">=": {
-                    "float": "bool",
-                },
-                "!=": {
-                    "float": "bool",
-                },
-                "==": {
-                    "float": "bool",
-                },
-                "=": {
-                    "float": "float",
-                },
-            },
-            "string": {
-                "+": {"string": "string"},
-                "!=": {"string": "bool"},
-                "==": {"string": "bool"},
-                "=": {"string": "string"},
-            },
-            "bool": {
-                "!=": {"bool": "string"},
-                "==": {"bool": "bool"},
-                "&&": {"bool": "bool"},
-                "||": {"bool": "bool"},
-                "=": {"bool": "bool"},
-            },
-        }
+    @staticmethod
+    def change_to_number(value: str) -> int:
+        types = {"int": 0, "float": 1, "string": 2, "bool": 3}
+        return types[value]
 
-    def get_type(self, left: str, operation: str, right: str) -> str:
+    @staticmethod
+    def change_to_string(value: int) -> str:
+        types = {0: "int", 1: "float", 2: "string", 3: "bool"}
+        return types[value]
+
+    # Get the result type of an operation
+    def get_result_type(self, left: str, operation: str, right: str) -> str:
         try:
-            result = self.semantic_cube[left][operation][right]
-        except KeyError as e:
-            raise TypeError("Type mismatch error: Operand doesn't match data type.") from None
-        return result
+            result = self.semantic_cube[self.change_to_number(left)][operation][self.change_to_number(right)]
+        except KeyError:
+            raise TypeError("Type mismatch error: Operand doesn't match data type.")
+        return self.change_to_string(result)
+
+    # Check if an operation is valid
+    def check_operation(self, left: str, operation: str, right: str) -> bool:
+        return self.get_result_type(left, operation, right) is None

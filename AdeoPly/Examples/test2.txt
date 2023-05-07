@@ -1,15 +1,25 @@
 program test2;
 
-var int: i1, i2, i3;
-var float: f1, f2, f3;
-var string: s1;
+var int: i1, i2;
+var float: f1;
+var string: s1, s2;
 
 main()
 {
-    var int: i4, i5;
-    var float: f4;
+    var int: i3;
+    var float: f2;
+    var bool: b1;
 
-    print(1);
-    print(2);
-    print(3);
+    b1 = true;
+    b1 = 4 > 1 && 5 < 2;
+
+    i1 = 1 + 1;
+    f2 = i1 * 28.5 + 5;
+    i3 = i1;
+
+    s1 = "true";
+    read(s2);
+    print(s1, 1);
+
+    f1 = f2;
 }
