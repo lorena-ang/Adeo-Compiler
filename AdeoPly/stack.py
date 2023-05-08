@@ -16,7 +16,7 @@ class Context:
         return self.variable_table.check_variable_exists(name)
 
     # Get attributes of variable from its name
-    def get_variable(self, name: str) -> Variable:
+    def get_variable_from_name(self, name: str) -> Variable:
         return self.variable_table.get_variable_from_name(name)
 
     # Add a new variable to the context
@@ -52,7 +52,7 @@ class Stack:
     def get_variable_from_context(self, name: str) -> Variable:
         for context in reversed(self.contexts):
             if context.check_variable_exists(name):
-                return context.get_variable(name)
+                return context.get_variable_from_name(name)
         raise Exception(f"There is no variable named '{name}' in any context.")
 
     # Add a variable to stack in last context

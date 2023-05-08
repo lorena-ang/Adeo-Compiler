@@ -84,6 +84,19 @@ class MemoryManager:
             return typespace.values.index(value) + typespace.initial_address
         except ValueError:
             return None
+        
+    def __setitem__(self, address: int, value: int) -> None:
+        typespace = self.get_typespace_from_address(address)
+        if typespace == self.bools_space:
+            if not isinstance(value, bool):
+                value = True if value == "true" else False
+        elif typespace == self.ints_space:
+            value = int(value)
+        elif typespace == self.floats_space:
+            value = float(value)
+        elif typespace == self.strings_space:
+            value = str(value)
+        typespace.values[address - typespace.initial_address] = value
 
     # Reserves space for a variable that hasn't been assigned yet (only declared)
     def reserve_space(self, data_type: str) -> int:

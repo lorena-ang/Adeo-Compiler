@@ -9,7 +9,7 @@ from variable_table import Variable
 from memory_manager import MemoryManager
 from function_directory import FunctionDirectory
 from stack import Context, Stack
-from quadruples import Quadruples
+from quadruples import Quad, Quadruples
 from semantic_cube import SemanticCube
 
 #
@@ -127,7 +127,7 @@ quadruples = Quadruples()
 context_stack = Stack()
 context_stack.push(Context("global", data_memory_manager))
 
-jump_stack: list[int] = []
+jumps: list[int] = []
 
 # Parsing rules
 
@@ -185,15 +185,50 @@ def p_statement(t):
 
 def p_conditional(t):
     '''
-    conditional : IF LPAREN expression RPAREN block conditional_1
+    conditional : IF LPAREN expression conditional_np1 RPAREN block conditional_1
     '''
+    last_jump = jumps.pop()
+    quad = quadruples[last_jump]
+    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, quadruples.instr_ptr)
     
 def p_conditional_1(t):
     '''
-    conditional_1 : ELSEIF LPAREN expression RPAREN block conditional_1
-                  | ELSE block
+    conditional_1 : ELSEIF LPAREN conditional_np2 expression conditional_np1 RPAREN block conditional_1
+                  | ELSE conditional_np3 block
                   |
     '''
+    
+def p_conditional_np1(t):
+    '''
+    conditional_np1 :
+    '''
+    if isinstance(t[-1], tuple):
+        type, address = t[-1]
+    else:
+        type, address = t[-1].process_variable()
+    if type == "bool":
+        quadruples.add_quad(Quad("GOTOF", address, None, None))
+        jumps.append(quadruples.instr_ptr - 1)
+    else:
+        raise TypeError("Type mismatch error: Expression should be a boolean.")
+    
+def p_conditional_np2(t):
+    '''
+    conditional_np2 :
+    '''
+    last_jump = jumps.pop()
+    quad = quadruples[last_jump]
+    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, quadruples.instr_ptr)
+
+def p_conditional_np3(t):
+    '''
+    conditional_np3 :
+    '''
+    quadruples.add_quad(Quad("GOTO", None, None, None))
+    last_jump = jumps.pop()
+    jumps.append(quadruples.instr_ptr - 1)
+    quad = quadruples[last_jump]
+    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, quadruples.instr_ptr)
 
 def p_write(t):
     '''
@@ -203,10 +238,10 @@ def p_write(t):
     for elem in elements:
         if elements is not None:
             if type(elem) == tuple:
-                quadruples.add_quad(("PRINT", elem[1], None, None))
+                quadruples.add_quad(Quad("PRINT", elem[1], None, None))
             elif type(elem) == Variable:
                 address = elem.address
-                quadruples.add_quad(("PRINT", address, None, None))
+                quadruples.add_quad(Quad("PRINT", address, None, None))
         else:
             raise Exception("The data to be printed is invalid")
 
@@ -227,7 +262,7 @@ def p_read(t):
     if t[3] is not None:
             variable = t[3]
             address = variable.address
-            quadruples.add_quad(("READ", address, None, None))
+            quadruples.add_quad(Quad("READ", address, None, None))
     else:
         raise Exception(f"There is no variable named '{t[3]}'.")
 
@@ -415,8 +450,8 @@ def p_assignment(t):
         right_type, right_address = t[3].process_variable()
     operation_type = SemanticCube().get_result_type(left_type, t[2], right_type)
     if left_name is not None and context_stack.check_variable_exists(left_name):
-            quadruples.add_quad(("=", right_address, None, left_address))
-            t[0] = (operation_type, left_address)
+        quadruples.add_quad(Quad("=", right_address, None, left_address))
+        t[0] = (operation_type, left_address)
     else:
         raise Exception(f"Only variables may be assigned to.")
 
@@ -458,7 +493,7 @@ def p_expr_operations(t):
         right_type, right_address = t[3].process_variable()
     operation_type = SemanticCube().get_result_type(left_type, t[2], right_type)
     address = temporal_memory_manager.reserve_space(operation_type)
-    quadruples.add_quad((t[2], left_address, right_address, address))
+    quadruples.add_quad(Quad(t[2], left_address, right_address, address))
     t[0] = (operation_type, address)
 
 # Syntax error

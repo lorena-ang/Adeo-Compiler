@@ -9,14 +9,13 @@ class Quad:
         self.left_address = left_address
         self.right_address = right_address
         self.return_address = return_address
-    
-    # DELETE: Print for debugging
+        
     def __str__(self) -> str:
-        return f"operator = {self.operator}, left_address = {self.left_address}, right_address = {self.right_address}, return_address = {self.return_address}"
+        return f"({self.operator}, {self.left_address}, {self.right_address}, {self.return_address})"
 
 class Quadruples:
-    quadruples: list[Quad]
     instr_ptr: int
+    quadruples: list[Quad]
 
     def __init__(self) -> None:
         self.instr_ptr = 0
@@ -30,9 +29,19 @@ class Quadruples:
     # Get quadruple from an address by searching through memory
     def get_quad_from_address(self, address: int) -> Quad:
         return self.quadruples[address]
+    
+    # Get quadruple in an address
+    def __getitem__(self, address: int) -> Quad:
+        return self.quadruples[address]
+
+    # Set quadruple value in an address
+    def __setitem__(self, address: int, quad: Quad) -> None:
+        self.quadruples[address] = quad
 
     # DELETE: Print for debugging
     def print(self) -> None:
         print("\nQuadruples")
+        i = 0
         for quad in self.quadruples:
-            print(quad)
+            print(str(i) + " " + str(quad))
+            i += 1
