@@ -111,7 +111,7 @@ class MemoryManager:
     
     # DELETE: Print for debugging
     def __str__(self) -> str:
-        output = "\n---- Memory Manager ----"
+        output = "---- Memory Manager ----"
         output += "\nints"
         for addr, val in enumerate(self.ints_space.values):
             output += f"\n{addr + self.ints_space.initial_address}\t{val}"

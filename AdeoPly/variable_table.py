@@ -50,7 +50,7 @@ class VariableTable:
 
     # DELETE: Print for debugging
     def __str__(self) -> str:
-        var = ""
+        var = "\n---- Variable Table ----\n"
         for key, value in self.table.items():
             var += f"{value}\n"
         return var
@@ -58,6 +58,6 @@ class VariableTable:
     # DELETE: Print for debugging
     def print(self) -> None:
         variables = self.__str__().split("\n")
-        print("\n----Variable table----")
+        print("\n---- Variable Table ----")
         for value in variables:
             print(f"{value}")

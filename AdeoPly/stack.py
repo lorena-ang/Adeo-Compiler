@@ -27,7 +27,7 @@ class Context:
     
     # DELETE: Print for debugging
     def __str__(self) -> str:
-        return f"Scope: {self.scope}, \nVariable Table: \n{self.variable_table}Memory Manager: {self.context_memory_manager}"
+        return f"Scope: {self.scope}, {self.variable_table}{self.context_memory_manager}"
 
 class Stack:
     contexts: list[Context]

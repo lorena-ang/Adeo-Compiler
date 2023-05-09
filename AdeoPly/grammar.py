@@ -17,7 +17,6 @@ from semantic_cube import SemanticCube
 #
 
 keywords = {
-    'program' :'PROGRAM',
     'var' : 'VAR',
     'int' : 'INT',
     'float' : 'FLOAT',
@@ -128,18 +127,20 @@ context_stack = Stack()
 context_stack.push(Context("global", data_memory_manager))
 
 jumps: list[int] = []
+end_jumps: list[int] = []
+end_count: list[int] = []
 
 # Parsing rules
 
 def p_program(t):
     '''
-    program : PROGRAM ID SEMICOLON p_1 p_2 p_3 MAIN LPAREN RPAREN block
+    program : p_1 p_2 p_3 MAIN LPAREN RPAREN block
     '''
     data_memory_manager.print("Global")
     constant_memory_manager.print("Constant")
     temporal_memory_manager.print("Temporal")
     quadruples.print()
-    # context_stack.print()
+    #context_stack.print()
     t[0] = "END"
 
 def p_p_1(t):
@@ -182,10 +183,25 @@ def p_statement(t):
               | f_call SEMICOLON
               | return
     '''
+    
+def p_l_push_context(t):
+    '''
+    l_push_context :
+    '''
+    context_stack.push(Context("Loop", temporal_memory_manager))
+    end_count.append(0)
+
+def p_l_pop_context(t):
+    '''
+    l_pop_context :
+    '''
+    context_stack.pop()
+    for _ in range(end_count.pop()):
+        quadruples[end_jumps.pop()] = Quad("GOTO", None, None, quadruples.instr_ptr)
 
 def p_conditional(t):
     '''
-    conditional : IF LPAREN expression conditional_np1 RPAREN block conditional_1
+    conditional : IF LPAREN expression conditional_np1 RPAREN l_push_context block conditional_1 l_pop_context
     '''
     last_jump = jumps.pop()
     quad = quadruples[last_jump]
@@ -207,8 +223,8 @@ def p_conditional_np1(t):
     else:
         type, address = t[-1].process_variable()
     if type == "bool":
+        jumps.append(quadruples.instr_ptr)
         quadruples.add_quad(Quad("GOTOF", address, None, None))
-        jumps.append(quadruples.instr_ptr - 1)
     else:
         raise TypeError("Type mismatch error: Expression should be a boolean.")
     
@@ -216,6 +232,9 @@ def p_conditional_np2(t):
     '''
     conditional_np2 :
     '''
+    end_jumps.append(quadruples.instr_ptr)
+    end_count[-1] += 1
+    quadruples.add_quad(Quad("GOTO", None, None, None))
     last_jump = jumps.pop()
     quad = quadruples[last_jump]
     quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, quadruples.instr_ptr)
@@ -268,8 +287,19 @@ def p_read(t):
 
 def p_l_while(t):
     '''
-    l_while : WHILE LPAREN expression RPAREN block
+    l_while : WHILE LPAREN l_while_np1 expression conditional_np1 RPAREN block
     '''
+    last_jump = jumps.pop()
+    second_last_jump = jumps.pop()
+    quadruples.add_quad(Quad("GOTO", None, None, second_last_jump))
+    quad = quadruples[last_jump]
+    quadruples[last_jump] = (quad.operator, quad.left_address, None, quadruples.instr_ptr)
+    
+def p_l_while_np1(t):
+    '''
+    l_while_np1 :
+    '''
+    jumps.append(quadruples.instr_ptr)
 
 def p_l_for(t):
     '''
