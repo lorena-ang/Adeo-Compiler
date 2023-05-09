@@ -127,8 +127,8 @@ context_stack = Stack()
 context_stack.push(Context("global", data_memory_manager))
 
 jumps: list[int] = []
-end_jumps: list[int] = []
 end_count: list[int] = []
+end_jumps: list[int] = []
 
 # Parsing rules
 
@@ -303,8 +303,75 @@ def p_l_while_np1(t):
 
 def p_l_for(t):
     '''
-    l_for : FOR ID ASSIGNOP expression TO expr DO block
+    l_for : FOR l_for_np1 ASSIGNOP expr l_for_np2 TO expr l_for_np3 DO block
     '''
+    # Jumps
+    last_jump = jumps.pop()
+    first_jump = jumps.pop()
+    # Look for 1 const or save it
+    value = 1
+    one_address = constant_memory_manager.find_address(value)
+    if one_address is None:
+        one_address = constant_memory_manager.add_value_to_memory(value)
+    # Add one
+    left_type, left_address = t[2].process_variable()
+    operation_type = SemanticCube().get_result_type(left_type, "+", "int")
+    address = data_memory_manager.reserve_space(operation_type)
+    quadruples.add_quad(Quad("+", left_address, one_address, address))
+    quadruples.add_quad(Quad("=", address, one_address, left_address))
+    # Update quadruples
+    quadruples.add_quad(Quad("GOTO", None, None, first_jump))
+    quad = quadruples[last_jump]
+    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, quadruples.instr_ptr)
+
+def p_l_for_np1(t):
+    '''
+    l_for_np1 : ID
+    '''
+    variable = context_stack.get_variable_from_context(t[1])
+    if variable is not None:
+        if variable.type == "int":
+            t[0] = variable
+        else:
+            raise TypeError("Type mismatch error: Variable in for loop should be an integer.")
+    else:
+        raise Exception("The variable in for loop does not exist.")
+    
+def p_l_for_np2(t):
+    '''
+    l_for_np2 :
+    '''
+    left_type, left_address = t[-3].process_variable()
+    left_name = t[-3].name
+    if type(t[-1]) is tuple:
+        right_type, right_address = t[-1]
+    else:
+        right_type, right_address = t[-1].process_variable()
+    operation_type = SemanticCube().get_result_type(left_type, "=", right_type)
+    if left_name is not None and context_stack.check_variable_exists(left_name):
+        quadruples.add_quad(Quad("=", right_address, None, left_address))
+        t[0] = (operation_type, left_address)
+    else:
+        raise Exception(f"Only variables may be assigned to.")
+    jumps.append(quadruples.instr_ptr)
+
+def p_l_for_np3(t):
+    '''
+    l_for_np3 :
+    '''
+    if type(t[-4]) is tuple:
+        left_type, left_address = t[-4]
+    else:
+        left_type, left_address = t[-4].process_variable()
+    if type(t[-1]) is tuple:
+        right_type, right_address = t[-1]
+    else:
+        right_type, right_address = t[-1].process_variable()
+    operation_type = SemanticCube().get_result_type(left_type, "<", right_type)
+    address = temporal_memory_manager.reserve_space(operation_type)
+    quadruples.add_quad(Quad("<", left_address, right_address, address))
+    jumps.append(quadruples.instr_ptr)
+    quadruples.add_quad(Quad("GOTOF", address, None, None))
 
 def p_f_call(t):
     '''
