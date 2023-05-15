@@ -1,4 +1,4 @@
-from typing import TypeVar, Generic
+from typing import TypeVar, Tuple, Generic
 
 TV = TypeVar("TV")
 SIZE = 1000
@@ -64,6 +64,10 @@ class MemoryManager:
     def get_value_from_address(self, address: int) -> int | float | str | bool:
         buffer = self.get_typespace_from_address(address)
         return buffer.values[address - buffer.initial_address]
+    
+    # Get the number of resources per type
+    def get_resources(self) -> Tuple[int, int, int, int]:
+        return (len(self.ints_space.values), len(self.floats_space.values), len(self.strings_space.values), len(self.bools_space.values))
 
     # Adds a new value to the typespace
     def add_value_to_typespace(self, typespace: TypeSpace, value: int | None) -> int:
@@ -96,6 +100,10 @@ class MemoryManager:
             value = float(value)
         elif typespace == self.strings_space:
             value = str(value)
+        elif typespace == self.ptrs_space:
+            self[typespace.values[address - typespace.initial_address]] = value
+            return
+
         typespace.values[address - typespace.initial_address] = value
 
     # Reserves space for a variable that hasn't been assigned yet (only declared)

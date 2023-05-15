@@ -1,0 +1,20 @@
+var int: xa, xb;
+
+int function suma(int a, int b)
+{
+    var int: c;
+
+    c = a + b;
+
+    return c;
+}
+
+void function hola()
+{
+    print("hola");
+}
+
+main()
+{
+    xa = suma(1, 2);
+}

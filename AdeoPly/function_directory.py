@@ -7,14 +7,16 @@ class Function():
     resources: Tuple[int, int, int, int] # resources = (ints, floats, bools, strings)
     return_type: str
     return_address: int
+    return_bool: bool
     address: int
     context: Context
     parameters: list[str] # str = type of var --> ["int", "float", "int"]
 
-    def __init__(self, name: str, return_type: str, address: int, context: Context, return_address: int = 0):
+    def __init__(self, name: str, return_type: str, return_address: int, context: Context, address: int):
         self.name = name
         self.return_type = return_type
         self.return_address = return_address
+        self.return_bool = False
         self.address = address
         self.context = context
         self.parameters = []
@@ -28,14 +30,14 @@ class FunctionDirectory():
 
     # Get the information for a function in the directory
     def get_function_from_directory(self, name: str) -> Function:
-        if (function := self.get_function(name)) is not None:
+        if (function := self.dir.get(name)) is not None:
             return function
         else:
             raise Exception(f"The information for function '{name}' does not exist.")
 
     # Check if a function exists in the directory
     def check_function_exists(self, name: str) -> bool:
-        if self.get_function(name) is None:
+        if self.dir.get(name) is None:
             return False
         else:
             return True
@@ -45,7 +47,7 @@ class FunctionDirectory():
         if self.check_function_exists(name):
             raise Exception(f"A function with the name '{name}' already exists in the function directory.")
         else:
-            self.dir[name] = Function(name, context, address, return_type, return_address)
+            self.dir[name] = Function(name, return_type, return_address, context, address)
             return self.dir[name]
 
     # DELETE: Print for debugging

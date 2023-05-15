@@ -130,46 +130,29 @@ jumps: list[int] = []
 end_count: list[int] = []
 end_jumps: list[int] = []
 
+function_stack: list[str] = []
+
 # Parsing rules
 
 def p_program(t):
     '''
-    program : p_1 p_2 p_3 MAIN LPAREN RPAREN block
+    program : class_decl variables_decl function_decl MAIN LPAREN RPAREN block
     '''
     data_memory_manager.print("Global")
     constant_memory_manager.print("Constant")
-    temporal_memory_manager.print("Temporal")
+    # temporal_memory_manager.print("Temporal")
     quadruples.print()
-    #context_stack.print()
+    # context_stack.print()
     t[0] = "END"
 
-def p_p_1(t):
+def p_program_decl(t):
     '''
-    p_1 : class p_1
-        |
-    '''
-
-def p_p_2(t):
-    '''
-    p_2 : variables p_2
-        |
-    '''
-
-def p_p_3(t):
-    '''
-    p_3 : function p_3
-        |
-    '''
-
-def p_block(t):
-    '''
-    block : LBRACE p_2 block_1 RBRACE
-    '''
-
-def p_block_1(t):
-    '''
-    block_1 : statement block_1
-            |
+    class_decl : class class_decl
+               |
+    variables_decl : variables variables_decl
+                   |
+    function_decl : function function_decl
+                  |
     '''
 
 def p_statement(t):
@@ -183,12 +166,37 @@ def p_statement(t):
               | f_call SEMICOLON
               | return
     '''
+
+def p_block(t):
+    '''
+    block : LBRACE b_push_context variables_decl block_1 RBRACE b_pop_context
+    l_block : LBRACE l_push_context block_1 RBRACE l_pop_context
+    c_block : LBRACE block_1 RBRACE
+    '''
+
+def p_block_1(t):
+    '''
+    block_1 : statement block_1
+            |
+    '''
+    
+def p_b_push_context(t):
+    '''
+    b_push_context :
+    '''
+    context_stack.push(Context("local", temporal_memory_manager))
+    
+def p_b_pop_context(t):
+    '''
+    b_pop_context : 
+    '''
+    context_stack.pop()
     
 def p_l_push_context(t):
     '''
     l_push_context :
     '''
-    context_stack.push(Context("Loop", temporal_memory_manager))
+    context_stack.push(Context("loop", temporal_memory_manager))
     end_count.append(0)
 
 def p_l_pop_context(t):
@@ -201,7 +209,7 @@ def p_l_pop_context(t):
 
 def p_conditional(t):
     '''
-    conditional : IF LPAREN expression conditional_np1 RPAREN l_push_context block conditional_1 l_pop_context
+    conditional : IF LPAREN expression conditional_np1 RPAREN l_push_context c_block conditional_1 l_pop_context
     '''
     last_jump = jumps.pop()
     quad = quadruples[last_jump]
@@ -209,8 +217,8 @@ def p_conditional(t):
     
 def p_conditional_1(t):
     '''
-    conditional_1 : ELSEIF LPAREN conditional_np2 expression conditional_np1 RPAREN block conditional_1
-                  | ELSE conditional_np3 block
+    conditional_1 : ELSEIF LPAREN conditional_np2 expression conditional_np1 RPAREN c_block conditional_1
+                  | ELSE conditional_np3 c_block
                   |
     '''
     
@@ -279,21 +287,21 @@ def p_read(t):
     read : READ LPAREN var RPAREN SEMICOLON
     '''
     if t[3] is not None:
-            variable = t[3]
-            address = variable.address
-            quadruples.add_quad(Quad("READ", address, None, None))
+        variable = t[3]
+        address = variable.address
+        quadruples.add_quad(Quad("READ", address, None, None))
     else:
         raise Exception(f"There is no variable named '{t[3]}'.")
 
 def p_l_while(t):
     '''
-    l_while : WHILE LPAREN l_while_np1 expression conditional_np1 RPAREN block
+    l_while : WHILE LPAREN l_while_np1 expression conditional_np1 RPAREN l_block
     '''
     last_jump = jumps.pop()
     second_last_jump = jumps.pop()
     quadruples.add_quad(Quad("GOTO", None, None, second_last_jump))
     quad = quadruples[last_jump]
-    quadruples[last_jump] = (quad.operator, quad.left_address, None, quadruples.instr_ptr)
+    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, quadruples.instr_ptr)
     
 def p_l_while_np1(t):
     '''
@@ -303,7 +311,7 @@ def p_l_while_np1(t):
 
 def p_l_for(t):
     '''
-    l_for : FOR l_for_np1 ASSIGNOP expr l_for_np2 TO expr l_for_np3 DO block
+    l_for : FOR l_for_np1 ASSIGNOP expr l_for_np2 TO expr l_for_np3 DO l_block
     '''
     # Jumps
     last_jump = jumps.pop()
@@ -375,54 +383,164 @@ def p_l_for_np3(t):
 
 def p_f_call(t):
     '''
-    f_call : ID LPAREN f_call_1 RPAREN
+    f_call : ID LPAREN args RPAREN
     '''
+    f_name = t[1]
+    f_args = t[3]
+    
+    if function_directory.check_function_exists(f_name):
+        function = function_directory.get_function_from_directory(f_name)
+        f_params = function.parameters
+        if len(f_params) != len(f_args):
+            raise Exception(f"The amount of function parameters and call arguments does not match for function '{f_name}'.")
+        else:
+            quadruples.add_quad(Quad("ERA", None, None, function.address))
+            for param, arg in zip(f_params, f_args):
+                p = param
+                if type(arg) == Variable:
+                    a_type = arg.type
+                    a_address = arg.address
+                else:
+                    a_type, a_address = arg
+                if (p.type == a_type):
+                    quadruples.add_quad(Quad("PARAM", a_address, None, p.address))
+                else:
+                    raise TypeError(f"One or more call arguments in function '{f_name}' do not match the parameter types")
+            quadruples.add_quad(Quad("GOSUB", None, None, function.address))
+            if function.return_type != "void":
+                r_address = temporal_memory_manager.reserve_space(function.return_type)
+                quadruples.add_quad(Quad("=", function.return_address, None, r_address))
+            else:
+                r_address = function.return_address
+            t[0] = (function.return_type, r_address)
+    else:
+        raise Exception(f"The function named '{f_name}' was not declared.")
 
-def p_f_call_1(t):
+def p_args(t):
     '''
-    f_call_1 : expression f_call_2
-             |
+    args : expression COMMA args
+         | expression
+         |
     '''
-
-def p_f_call_2(t):
-    '''
-    f_call_2 : COMMA expression f_call_2
-             |
-    '''
+    if len(t) == 4:
+        t[0] = [t[1], *t[3]]
+    elif len(t) == 1:
+        t[0] = []
+    else:
+        t[0] = [t[1]]
 
 def p_return(t):
     '''
     return : RETURN expression SEMICOLON
     '''
+    if type(t[2]) is tuple:
+        expr_type, expr_address = t[2]
+    else:
+        expr_type, expr_address = t[2].process_variable()
+    f_name = function_stack[-1]
+    
+    if function_directory.check_function_exists(f_name):
+        function = function_directory.get_function_from_directory(f_name)
+        if function.return_type == "void":
+            raise Exception("A return statement cannot be used inside a function of type void.")
+        elif function.return_address is not None and expr_type == function.return_type:
+            quadruples.add_quad(Quad("=", expr_address, None, function.return_address))
+            quadruples.add_quad(Quad("ENDSUB", None, None, None))
+            function.return_bool = True
+        else:
+            raise Exception(f"The item returned for the function named '{f_name}' does not match its expected return type.")
+    else:
+        raise Exception("Return statements must be inside a function.")
 
 def p_function(t):
     '''
-    function : function_t FUNCTION ID function_p block
+    function : function_t function_p function_np1 function_np2 block
+             | function_v function_p function_np1 function_np2 block
     '''
+    f_name = function_stack.pop()
+    context_stack.pop()
+    function = function_directory.get_function_from_directory(f_name)
+    
+    if function.return_type != "void" and not function.return_bool:
+        raise Exception(f"Function of type '{function.return_type}' is missing a return statement.")
+    
+    function.resources = temporal_memory_manager.get_resources()
+    
+    if function.return_type == "void":
+        quadruples.add_quad(Quad("ENDSUB", None, None, None))
+    
+    # temporal_memory_manager.print()
+    temporal_memory_manager.clear_memory_values()
 
 def p_function_t(t):
     '''
-    function_t : type
-               | VOID
+    function_t : type FUNCTION ID
+    function_v : VOID FUNCTION ID
     '''
-    t[0] = t[1]
+    f_type = t[1]
+    f_id = t[3]
+    t[0] = (f_type, f_id)
 
 def p_function_p(t):
     '''
     function_p : LPAREN RPAREN
                | LPAREN params RPAREN
     '''
+    if len(t) == 3:
+        t[0] = []
+    else:
+        t[0] = t[2]
+    
+def p_function_np1(t):
+    '''
+    function_np1 :
+    '''
+    f_type, f_name = t[-2]
+    f_params = t[-1]
+    # Check there isn't another function with same name
+    if function_directory.check_function_exists(f_name):
+        raise Exception(f"There is already a function with the name '{f_name}' in the directory.")
+    # Reserve space for return
+    if f_type == "void":
+        return_address = None
+    else:
+        return_address = data_memory_manager.reserve_space(f_type)
+    # Add function to memory, function directory, and to the context stack
+    f_context = Context("function", temporal_memory_manager)
+    f_address = data_memory_manager.add_value_to_memory(f_name)
+    function = function_directory.add_function_to_directory(f_name, f_type, return_address, f_address, f_context)
+    context_stack.push(f_context)
+    # Update function parameters
+    for p_type, p_name in f_params:
+        variable = context_stack.add_variable_to_stack(p_name, p_type)
+        function.parameters.append(Variable(p_name, p_type, variable.address))
+    # Save in function stack
+    function_stack.append(f_name)
+    
+def p_function_np2(t):
+    '''
+    function_np2 :
+    '''
+    f_name = function_stack[-1]
+    function_directory.get_function_from_directory(f_name).initial_quad_address = quadruples.instr_ptr
+    
+def p_params_t(t):
+    '''
+    params_t : type ID
+    '''
+    f_type = t[1]
+    f_id = t[2]
+    t[0] = (f_type, f_id)
 
 def p_params(t):
     '''
-    params : type ID params_1
+    params : params_t COMMA params
+           | params_t
     '''
-
-def p_params_1(t):
-    '''
-    params_1 : COMMA type ID params_1
-             |
-    '''
+    if len(t) == 4:
+        t[0] = [t[1], *t[3]]
+    else:
+        t[0] = [t[1]]
     
 def p_type(t):
     '''
