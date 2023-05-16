@@ -9,10 +9,6 @@ class Variable:
         self.name = name
         self.type = type
         self.address = address
-        
-    # Returns a tuple with only the type and address - needed for assignments and expr_operations
-    def process_variable(self) -> Tuple[str, int]:
-        return (self.type, self.address)
     
     # DELETE: Print for debugging
     def __str__(self) -> str:

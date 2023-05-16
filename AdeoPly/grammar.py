@@ -11,6 +11,7 @@ from function_directory import FunctionDirectory
 from stack import Context, Stack
 from quadruples import Quad, Quadruples
 from semantic_cube import SemanticCube
+from data_processor import DataProcessor
 
 #
 # LEXER
@@ -132,6 +133,8 @@ end_jumps: list[int] = []
 
 function_stack: list[str] = []
 
+data_processor = DataProcessor()
+
 # Parsing rules
 
 def p_program(t):
@@ -226,15 +229,11 @@ def p_conditional_np1(t):
     '''
     conditional_np1 :
     '''
-    if isinstance(t[-1], tuple):
-        type, address = t[-1]
-    else:
-        type, address = t[-1].process_variable()
-    if type == "bool":
-        jumps.append(quadruples.instr_ptr)
-        quadruples.add_quad(Quad("GOTOF", address, None, None))
-    else:
+    type, address = data_processor.process_data(t[-1])
+    if type != "bool":
         raise TypeError("Type mismatch error: Expression should be a boolean.")
+    jumps.append(quadruples.instr_ptr)
+    quadruples.add_quad(Quad("GOTOF", address, None, None))
     
 def p_conditional_np2(t):
     '''
@@ -262,15 +261,14 @@ def p_write(t):
     write : PRINT LPAREN write_1 RPAREN SEMICOLON
     '''
     elements = t[3]
+    if elements is None:
+        raise Exception("The data to be printed is invalid.")
     for elem in elements:
-        if elements is not None:
-            if type(elem) == tuple:
-                quadruples.add_quad(Quad("PRINT", elem[1], None, None))
-            elif type(elem) == Variable:
-                address = elem.address
-                quadruples.add_quad(Quad("PRINT", address, None, None))
-        else:
-            raise Exception("The data to be printed is invalid")
+        if type(elem) == tuple:
+            quadruples.add_quad(Quad("PRINT", elem[1], None, None))
+        elif type(elem) == Variable:
+            address = elem.address
+            quadruples.add_quad(Quad("PRINT", address, None, None))
 
 def p_write_1(t):
     '''
@@ -286,12 +284,11 @@ def p_read(t):
     '''
     read : READ LPAREN var RPAREN SEMICOLON
     '''
-    if t[3] is not None:
-        variable = t[3]
-        address = variable.address
-        quadruples.add_quad(Quad("READ", address, None, None))
-    else:
+    variable = t[3]
+    if variable is None:
         raise Exception(f"There is no variable named '{t[3]}'.")
+    address = variable.address
+    quadruples.add_quad(Quad("READ", address, None, None))
 
 def p_l_while(t):
     '''
@@ -322,7 +319,7 @@ def p_l_for(t):
     if one_address is None:
         one_address = constant_memory_manager.add_value_to_memory(value)
     # Add one
-    left_type, left_address = t[2].process_variable()
+    left_type, left_address = data_processor.process_data(t[2])
     operation_type = SemanticCube().get_result_type(left_type, "+", "int")
     address = data_memory_manager.reserve_space(operation_type)
     quadruples.add_quad(Quad("+", left_address, one_address, address))
@@ -349,12 +346,9 @@ def p_l_for_np2(t):
     '''
     l_for_np2 :
     '''
-    left_type, left_address = t[-3].process_variable()
     left_name = t[-3].name
-    if type(t[-1]) is tuple:
-        right_type, right_address = t[-1]
-    else:
-        right_type, right_address = t[-1].process_variable()
+    left_type, left_address = data_processor.process_data(t[-3])
+    right_type, right_address = data_processor.process_data(t[-1])
     operation_type = SemanticCube().get_result_type(left_type, "=", right_type)
     if left_name is not None and context_stack.check_variable_exists(left_name):
         quadruples.add_quad(Quad("=", right_address, None, left_address))
@@ -367,14 +361,8 @@ def p_l_for_np3(t):
     '''
     l_for_np3 :
     '''
-    if type(t[-4]) is tuple:
-        left_type, left_address = t[-4]
-    else:
-        left_type, left_address = t[-4].process_variable()
-    if type(t[-1]) is tuple:
-        right_type, right_address = t[-1]
-    else:
-        right_type, right_address = t[-1].process_variable()
+    left_type, left_address = data_processor.process_data(t[-4])
+    right_type, right_address = data_processor.process_data(t[-1])
     operation_type = SemanticCube().get_result_type(left_type, "<", right_type)
     address = temporal_memory_manager.reserve_space(operation_type)
     quadruples.add_quad(Quad("<", left_address, right_address, address))
@@ -397,11 +385,7 @@ def p_f_call(t):
             quadruples.add_quad(Quad("ERA", None, None, function.address))
             for param, arg in zip(f_params, f_args):
                 p = param
-                if type(arg) == Variable:
-                    a_type = arg.type
-                    a_address = arg.address
-                else:
-                    a_type, a_address = arg
+                a_type, a_address = data_processor.process_data(arg)
                 if (p.type == a_type):
                     quadruples.add_quad(Quad("PARAM", a_address, None, p.address))
                 else:
@@ -433,10 +417,7 @@ def p_return(t):
     '''
     return : RETURN expression SEMICOLON
     '''
-    if type(t[2]) is tuple:
-        expr_type, expr_address = t[2]
-    else:
-        expr_type, expr_address = t[2].process_variable()
+    expr_type, expr_address = data_processor.process_data(t[2])
     f_name = function_stack[-1]
     
     if function_directory.check_function_exists(f_name):
@@ -616,9 +597,7 @@ def p_int_const(t):
     int_const : INT_CONST
     '''
     value = int(t[1])
-    address = constant_memory_manager.find_address(value)
-    if address is None:
-        address = constant_memory_manager.add_value_to_memory(value)
+    address = constant_memory_manager.find_address_or_add_value_to_memory(value)
     t[0] = ("int", address)
 
 def p_float_const(t):
@@ -626,9 +605,7 @@ def p_float_const(t):
     float_const : FLOAT_CONST
     '''
     value = float(t[1])
-    address = constant_memory_manager.find_address(value)
-    if address is None:
-        address = constant_memory_manager.add_value_to_memory(value)
+    address = constant_memory_manager.find_address_or_add_value_to_memory(value)
     t[0] = ("float", address)
 
 def p_string_const(t):
@@ -636,9 +613,7 @@ def p_string_const(t):
     string_const : STRING_CONST
     '''
     value = str(t[1])
-    address = constant_memory_manager.find_address(value)
-    if address is None:
-        address = constant_memory_manager.add_value_to_memory(value)
+    address = constant_memory_manager.find_address_or_add_value_to_memory(value)
     t[0] = ("string", address)
 
 def p_bool_const(t):
@@ -647,9 +622,7 @@ def p_bool_const(t):
                | FALSE
     '''
     value = str(t[1])
-    address = constant_memory_manager.find_address(value)
-    if address is None:
-        address = constant_memory_manager.add_value_to_memory(value)
+    address = constant_memory_manager.find_address_or_add_value_to_memory(value)
     t[0] = ("bool", address)
     
 def p_assignment(t):
@@ -657,12 +630,9 @@ def p_assignment(t):
     assignment : var ASSIGNOP assignment
                | var ASSIGNOP expression
     '''
-    left_type, left_address = t[1].process_variable()
     left_name = t[1].name
-    if type(t[3]) is tuple:
-        right_type, right_address = t[3]
-    else:
-        right_type, right_address = t[3].process_variable()
+    left_type, left_address = data_processor.process_data(t[1])
+    right_type, right_address = data_processor.process_data(t[3])
     operation_type = SemanticCube().get_result_type(left_type, t[2], right_type)
     if left_name is not None and context_stack.check_variable_exists(left_name):
         quadruples.add_quad(Quad("=", right_address, None, left_address))
@@ -698,14 +668,8 @@ def p_expr_operations(t):
     term : term TIMES factor
          | term DIVIDE factor
     '''
-    if type(t[1]) is tuple:
-        left_type, left_address = t[1]
-    else:
-        left_type, left_address = t[1].process_variable()
-    if type(t[3]) is tuple:
-        right_type, right_address = t[3]
-    else:
-        right_type, right_address = t[3].process_variable()
+    left_type, left_address = data_processor.process_data(t[1])
+    right_type, right_address = data_processor.process_data(t[3])
     operation_type = SemanticCube().get_result_type(left_type, t[2], right_type)
     address = temporal_memory_manager.reserve_space(operation_type)
     quadruples.add_quad(Quad(t[2], left_address, right_address, address))
