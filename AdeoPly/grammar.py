@@ -6,11 +6,12 @@
 
 import sys
 from variable_table import Variable
-from memory_manager import MemoryManager
-from function_directory import FunctionDirectory
-from stack import Context, Stack
-from quadruples import Quad, Quadruples
 from semantic_cube import SemanticCube
+from memory_manager import MemoryManager
+from quadruples import Quad, Quadruples
+from function_directory import FunctionDirectory
+from class_directory import ClassDirectory
+from stack import Context, Stack
 from data_processor import DataProcessor
 
 #
@@ -118,34 +119,36 @@ lexer = lex.lex()
 # PARSER
 #
 
-data_memory_manager = MemoryManager(0)
+# Memory management
+global_memory_manager = MemoryManager(0)
 constant_memory_manager = MemoryManager(4000)
 temporal_memory_manager = MemoryManager(8000)
-function_directory = FunctionDirectory()
-quadruples = Quadruples()
 
 context_stack = Stack()
-context_stack.push(Context("global", data_memory_manager))
+context_stack.push(Context("Global", global_memory_manager))
 
+quadruples = Quadruples()
+
+# Class management
+class_directory = ClassDirectory()
+class_stack: list[str] = []
+
+# Function management
+function_directory = FunctionDirectory()
+function_stack: list[str] = []
+
+# Jump and counter stacks
 jumps: list[int] = []
 end_count: list[int] = []
 end_jumps: list[int] = []
 
-function_stack: list[str] = []
-
+# Helper class for data processing
 data_processor = DataProcessor()
-
-# Parsing rules
 
 def p_program(t):
     '''
-    program : class_decl variables_decl function_decl MAIN LPAREN RPAREN block
+    program : class_decl variables_decl function_decl MAIN LPAREN RPAREN block end_program
     '''
-    data_memory_manager.print("Global")
-    constant_memory_manager.print("Constant")
-    # temporal_memory_manager.print("Temporal")
-    quadruples.print()
-    # context_stack.print()
     t[0] = "END"
 
 def p_program_decl(t):
@@ -157,6 +160,15 @@ def p_program_decl(t):
     function_decl : function function_decl
                   |
     '''
+
+def p_end_program(t):
+    '''
+    end_program :
+    '''
+    global_memory_manager.print("Global")
+    constant_memory_manager.print("Constant")
+    quadruples.print()
+    # context_stack.print()
 
 def p_statement(t):
     '''
@@ -173,21 +185,17 @@ def p_statement(t):
 def p_block(t):
     '''
     block : LBRACE b_push_context variables_decl block_1 RBRACE b_pop_context
-    l_block : LBRACE l_push_context block_1 RBRACE l_pop_context
-    c_block : LBRACE block_1 RBRACE
-    '''
-
-def p_block_1(t):
-    '''
     block_1 : statement block_1
             |
+    l_block : LBRACE l_push_context block_1 RBRACE l_pop_context
+    c_block : LBRACE block_1 RBRACE
     '''
     
 def p_b_push_context(t):
     '''
     b_push_context :
     '''
-    context_stack.push(Context("local", temporal_memory_manager))
+    context_stack.push(Context("Local", temporal_memory_manager))
     
 def p_b_pop_context(t):
     '''
@@ -199,7 +207,7 @@ def p_l_push_context(t):
     '''
     l_push_context :
     '''
-    context_stack.push(Context("loop", temporal_memory_manager))
+    context_stack.push(Context("Loop", temporal_memory_manager))
     end_count.append(0)
 
 def p_l_pop_context(t):
@@ -315,13 +323,11 @@ def p_l_for(t):
     first_jump = jumps.pop()
     # Look for 1 const or save it
     value = 1
-    one_address = constant_memory_manager.find_address(value)
-    if one_address is None:
-        one_address = constant_memory_manager.add_value_to_memory(value)
+    one_address = constant_memory_manager.find_address_or_add_value_to_memory(value)
     # Add one
     left_type, left_address = data_processor.process_data(t[2])
     operation_type = SemanticCube().get_result_type(left_type, "+", "int")
-    address = data_memory_manager.reserve_space(operation_type)
+    address = global_memory_manager.reserve_space(operation_type)
     quadruples.add_quad(Quad("+", left_address, one_address, address))
     quadruples.add_quad(Quad("=", address, one_address, left_address))
     # Update quadruples
@@ -439,7 +445,6 @@ def p_function(t):
              | function_v function_p function_np1 function_np2 block
     '''
     f_name = function_stack.pop()
-    context_stack.pop()
     function = function_directory.get_function_from_directory(f_name)
     
     if function.return_type != "void" and not function.return_bool:
@@ -452,6 +457,7 @@ def p_function(t):
     
     # temporal_memory_manager.print()
     temporal_memory_manager.clear_memory_values()
+    context_stack.pop()
 
 def p_function_t(t):
     '''
@@ -485,10 +491,10 @@ def p_function_np1(t):
     if f_type == "void":
         return_address = None
     else:
-        return_address = data_memory_manager.reserve_space(f_type)
+        return_address = global_memory_manager.reserve_space(f_type)
     # Add function to memory, function directory, and to the context stack
-    f_context = Context("function", temporal_memory_manager)
-    f_address = data_memory_manager.add_value_to_memory(f_name)
+    f_context = Context("Function", temporal_memory_manager)
+    f_address = global_memory_manager.add_value_to_memory(f_name)
     function = function_directory.add_function_to_directory(f_name, f_type, return_address, f_address, f_context)
     context_stack.push(f_context)
     # Update function parameters
@@ -508,9 +514,14 @@ def p_function_np2(t):
 def p_params_t(t):
     '''
     params_t : type ID
+    attributes_t : type COLON ID
     '''
-    f_type = t[1]
-    f_id = t[2]
+    if len(t) == 3:
+        f_type = t[1]
+        f_id = t[2]
+    else:
+        f_type = t[1]
+        f_id = t[3]
     t[0] = (f_type, f_id)
 
 def p_params(t):
@@ -534,54 +545,131 @@ def p_type(t):
 
 def p_variables(t):
     '''
-    variables : VAR type COLON ID array variables_1 SEMICOLON
-              | VAR ID COLON ID array variables_1 SEMICOLON
+    variables : VAR type COLON variables_2 SEMICOLON
+              | VAR ID COLON variables_1 SEMICOLON
     '''
-    type = t[2]
-    variables = [t[4], *t[6]]
-    for var in variables:
-        context_stack.add_variable_to_stack(var, type)
+    # For simple data types
+    if data_processor.check_type_simple(t[2]):
+        v_type = t[2]
+        variables = t[4]
+        for var in variables:
+            context_stack.add_variable_to_stack(var, v_type)
+    # For class objects
+    else:
+        c_name = t[2]
+        variables = t[4]
+        if not class_directory.check_class_exists(c_name):
+            raise Exception("The class '{c_name}' has not been declared.")
+        class_detail = class_directory.get_class_from_directory(c_name)
+        for var in variables:
+            context_stack.add_variable_to_stack(var, c_name)
+            for value in class_detail.variable_table.table.values():
+                context_stack.add_variable_to_stack(f"{var}.{value.name}", value.type)
 
 def p_variables_1(t):
     '''
-    variables_1 : COMMA ID array variables_1
-                |
+    variables_1 : ID COMMA variables_1
+                | ID
     '''
-    if len(t) == 5:
-        t[0] = [t[2], *t[4]]
+    if len(t) == 4:
+        t[0] = [t[1], *t[3]]
     else:
-        t[0] = []
-
+        t[0] = [t[1]]
+        
+def p_variables_2(t):
+    '''
+    variables_2 : ID COMMA variables_2
+                | ID
+                | array COMMA variables_2
+                | array   
+    '''
+    if len(t) == 4:
+        t[0] = [t[1], *t[3]]
+    else:
+        t[0] = [t[1]]
+        
 def p_array(t):
     '''
-    array : LBRACK INT_CONST RBRACK
-          | LBRACK INT_CONST RBRACK LBRACK INT_CONST RBRACK
-          |
+    array : ID array_dimension
     '''
+    t[0] = t[1]
+
+def p_array_dimension(t):
+    '''
+    array_dimension : LBRACK expr RBRACK
+                    | LBRACK expr RBRACK LBRACK expr RBRACK
+    '''
+    if len(t) == 4:
+        t[0] = [t[2]]
+    elif len(t) == 7:
+        t[0] = [t[2], t[5]]
 
 def p_var(t):
     '''
-    var : ID
-        | ID DOT ID
-        | ID array
+    var : ID DOT ID
+        | ID array_dimension
+        | ID
     '''
-    if len(t) == 3 and t[2] is None:
-        variable = context_stack.get_variable_from_context(t[1])
-        if variable is not None:
-            t[0] = variable
+    if len(t) == 2:
+        v_name = t[1]
+    elif len(t) == 4:
+        c_name = t[1]
+        v_name = f"{c_name}.{t[3]}"
     else:
         pass
+    
+    if not context_stack.check_variable_exists(v_name):
+        raise Exception(f"The variable '{v_name}' has not been declared.")
+    variable = context_stack.get_variable_from_context(v_name)
+    t[0] = variable
+    print(t[0])
 
 def p_class(t):
     '''
-    class : CLASS ID LBRACE type COLON ID class_1 RBRACE SEMICOLON
+    class : CLASS ID class_np1 class_np2 LBRACE class_attributes class_np3 RBRACE SEMICOLON
     '''
+    # Once class has been processed
+    class_stack.pop()
+    context_stack.pop()
 
-def p_class_1(t):
+def p_class_attributes(t):
     '''
-    class_1 : COMMA type COLON ID class_1
-            |
+    class_attributes : attributes_t COMMA class_attributes
+                     | attributes_t
     '''
+    if len(t) == 4:
+        t[0] = [t[1], *t[3]]
+    else:
+        t[0] = [t[1]]
+    
+def p_class_np1(t):
+    '''
+    class_np1 :
+    '''
+    c_name = t[-1]
+    if class_directory.check_class_exists(c_name):
+        raise Exception(f"There is already a class named '{c_name}' in the directory.")
+    class_directory.add_class_to_directory(c_name)
+    class_stack.append(c_name)
+    t[0] = c_name
+
+def p_class_np2(t):
+    '''
+    class_np2 :
+    '''
+    c_name = t[-1]
+    class_detail = class_directory.get_class_from_directory(c_name)
+    context_stack.push(Context("Class", global_memory_manager, class_detail.variable_table))
+
+def p_class_np3(t):
+    '''
+    class_np3 :
+    '''
+    attributes = t[-1]
+    for atr in attributes:
+        a_type, a_name = atr
+        if data_processor.check_type_simple(a_type):
+            context_stack.add_variable_to_stack(a_name, a_type)
 
 def p_const(t):
     '''

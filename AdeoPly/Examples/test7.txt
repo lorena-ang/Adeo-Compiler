@@ -1,0 +1,19 @@
+Class Perro
+{
+	int: edad,
+	string: color
+};
+Class Gato
+{
+	int: edad,
+	string: color
+};
+
+main()
+{
+    var Perro: perro1, perro2;
+    var int: num;
+
+    perro1.edad = 1;
+    num = perro1.edad;
+}

@@ -81,20 +81,14 @@ class MemoryManager:
         typespace = self.get_typespace_from_value(value)
         return self.add_value_to_typespace(typespace, value)
 
-    # Find memory address from a value
-    def find_address(self, value: int | float | str | bool) -> int | None:
+    # Find memory address from a value or add it to memory
+    def find_address_or_add_value_to_memory(self, value: int | float | str | bool) -> int:
         typespace = self.get_typespace_from_value(value)
         try:
             return typespace.values.index(value) + typespace.initial_address
         except ValueError:
-            return None
-    
-    def find_address_or_add_value_to_memory(self, value: int | float | str | bool) -> int:
-        typespace = self.get_typespace_from_value(value)
-        address = self.find_address(value)
-        if address is None:
             address = self.add_value_to_typespace(typespace, value)
-        return address
+            return address
         
     def __setitem__(self, address: int, value: int) -> None:
         typespace = self.get_typespace_from_address(address)

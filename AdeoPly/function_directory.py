@@ -1,7 +1,7 @@
 from typing import Tuple
 from stack import Context
 
-class Function():
+class Function:
     name: str
     initial_quad_address: int
     resources: Tuple[int, int, int, int] # resources = (ints, floats, bools, strings)
@@ -22,7 +22,7 @@ class Function():
         self.parameters = []
         self.resources = (0, 0, 0, 0)
 
-class FunctionDirectory():
+class FunctionDirectory:
     dir: dict[str, Function]
     
     def __init__(self) -> None:
