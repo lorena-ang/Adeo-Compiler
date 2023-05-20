@@ -44,11 +44,8 @@ class FunctionDirectory:
 
     # Add a funcion to function directory
     def add_function_to_directory(self, name: str, return_type: str, return_address: int, address: int, context: Context) -> Function:
-        if self.check_function_exists(name):
-            raise Exception(f"A function with the name '{name}' already exists in the function directory.")
-        else:
-            self.dir[name] = Function(name, return_type, return_address, context, address)
-            return self.dir[name]
+        self.dir[name] = Function(name, return_type, return_address, context, address)
+        return self.dir[name]
 
     # DELETE: Print for debugging
     def print(self) -> None:

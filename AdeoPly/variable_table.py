@@ -21,8 +21,6 @@ class VariableTable:
         self.table = {}
 
     def add_variable(self, name: str, type: str, address: int = 0) -> Variable:
-        if name in self.table:
-            raise Exception(f"A variable with the name '{name}' already exists in the variable table.")
         self.table[name] = Variable(name, type, address)
         return self.table[name]
 

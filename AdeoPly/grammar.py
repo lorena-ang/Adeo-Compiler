@@ -13,6 +13,7 @@ from function_directory import FunctionDirectory
 from class_directory import ClassDirectory
 from stack import Context, Stack
 from data_processor import DataProcessor
+from program_error import raise_program_error, ProgramErrorType
 
 #
 # LEXER
@@ -104,9 +105,8 @@ def t_ID(t):
 t_ignore = " \t"
 def t_newline(t):
     r'\n+'
-    t.lexer.lineno += len(t.value)
+    t.lexer.lineno += t.value.count('\n')
 
-# Illegal character error
 def t_error(t):
     print(f"Illegal character '{t.value[0]!r}' in line {t.lineno}")
     t.lexer.skip(1)
@@ -131,7 +131,6 @@ quadruples = Quadruples()
 
 # Class management
 class_directory = ClassDirectory()
-class_stack: list[str] = []
 
 # Function management
 function_directory = FunctionDirectory()
@@ -239,7 +238,7 @@ def p_conditional_np1(t):
     '''
     type, address = data_processor.process_data(t[-1])
     if type != "bool":
-        raise TypeError("Type mismatch error: Expression should be a boolean.")
+        raise_program_error(ProgramErrorType.TYPE_MISMATCH, t.lineno(0), "Expression should be boolean")
     jumps.append(quadruples.instr_ptr)
     quadruples.add_quad(Quad("GOTOF", address, None, None))
     
@@ -270,7 +269,7 @@ def p_write(t):
     '''
     elements = t[3]
     if elements is None:
-        raise Exception("The data to be printed is invalid.")
+        raise_program_error(ProgramErrorType.UNSUPPORTED_OPERATION, t.lineno(1), "The data to be printed is invalid")
     for elem in elements:
         if type(elem) == tuple:
             quadruples.add_quad(Quad("PRINT", elem[1], None, None))
@@ -294,7 +293,7 @@ def p_read(t):
     '''
     variable = t[3]
     if variable is None:
-        raise Exception(f"There is no variable named '{t[3]}'.")
+        raise_program_error(ProgramErrorType.UNDECLARED_IDENTIFIER, t.lineno(1), f"The variable '{t[3]}' has not been declared")
     address = variable.address
     quadruples.add_quad(Quad("READ", address, None, None))
 
@@ -327,6 +326,8 @@ def p_l_for(t):
     # Add one
     left_type, left_address = data_processor.process_data(t[2])
     operation_type = SemanticCube().get_result_type(left_type, "+", "int")
+    if operation_type == "TypeMismatch":
+        raise_program_error(ProgramErrorType.TYPE_MISMATCH, t.lineno(1), "Operand does not match data type")
     address = global_memory_manager.reserve_space(operation_type)
     quadruples.add_quad(Quad("+", left_address, one_address, address))
     quadruples.add_quad(Quad("=", address, one_address, left_address))
@@ -344,9 +345,9 @@ def p_l_for_np1(t):
         if variable.type == "int":
             t[0] = variable
         else:
-            raise TypeError("Type mismatch error: Variable in for loop should be an integer.")
+            raise_program_error(ProgramErrorType.TYPE_MISMATCH, t.lineno(1), "Variable in for loop should be an integer")
     else:
-        raise Exception("The variable in for loop does not exist.")
+        raise_program_error(ProgramErrorType.UNDECLARED_IDENTIFIER, t.lineno(1), f"The variable '{t[1]}' has not been declared")
     
 def p_l_for_np2(t):
     '''
@@ -356,11 +357,11 @@ def p_l_for_np2(t):
     left_type, left_address = data_processor.process_data(t[-3])
     right_type, right_address = data_processor.process_data(t[-1])
     operation_type = SemanticCube().get_result_type(left_type, "=", right_type)
+    if operation_type == "TypeMismatch":
+        raise_program_error(ProgramErrorType.TYPE_MISMATCH, t.lineno(1), "Operand does not match data type")
     if left_name is not None and context_stack.check_variable_exists(left_name):
         quadruples.add_quad(Quad("=", right_address, None, left_address))
         t[0] = (operation_type, left_address)
-    else:
-        raise Exception(f"Only variables may be assigned to.")
     jumps.append(quadruples.instr_ptr)
 
 def p_l_for_np3(t):
@@ -370,6 +371,8 @@ def p_l_for_np3(t):
     left_type, left_address = data_processor.process_data(t[-4])
     right_type, right_address = data_processor.process_data(t[-1])
     operation_type = SemanticCube().get_result_type(left_type, "<", right_type)
+    if operation_type == "TypeMismatch":
+        raise_program_error(ProgramErrorType.TYPE_MISMATCH, t.lineno(1), "Operand does not match data type")
     address = temporal_memory_manager.reserve_space(operation_type)
     quadruples.add_quad(Quad("<", left_address, right_address, address))
     jumps.append(quadruples.instr_ptr)
@@ -381,12 +384,11 @@ def p_f_call(t):
     '''
     f_name = t[1]
     f_args = t[3]
-    
     if function_directory.check_function_exists(f_name):
         function = function_directory.get_function_from_directory(f_name)
         f_params = function.parameters
         if len(f_params) != len(f_args):
-            raise Exception(f"The amount of function parameters and call arguments does not match for function '{f_name}'.")
+            raise_program_error(ProgramErrorType.MISSING_REQUIRED_ARGUMENT, t.lineno(1), f"The amount of call arguments does not match the amount of parameters for function '{f_name}'")
         else:
             quadruples.add_quad(Quad("ERA", None, None, function.address))
             for param, arg in zip(f_params, f_args):
@@ -395,7 +397,7 @@ def p_f_call(t):
                 if (p.type == a_type):
                     quadruples.add_quad(Quad("PARAM", a_address, None, p.address))
                 else:
-                    raise TypeError(f"One or more call arguments in function '{f_name}' do not match the parameter types")
+                    raise_program_error(ProgramErrorType.TYPE_MISMATCH, t.lineno(1), f"One or more call arguments in function '{f_name}' do not match the parameter types")
             quadruples.add_quad(Quad("GOSUB", None, None, function.address))
             if function.return_type != "void":
                 r_address = temporal_memory_manager.reserve_space(function.return_type)
@@ -404,7 +406,7 @@ def p_f_call(t):
                 r_address = function.return_address
             t[0] = (function.return_type, r_address)
     else:
-        raise Exception(f"The function named '{f_name}' was not declared.")
+        raise_program_error(ProgramErrorType.UNDECLARED_IDENTIFIER, t.lineno(1), f"The function named '{f_name}' was not declared")
 
 def p_args(t):
     '''
@@ -424,20 +426,20 @@ def p_return(t):
     return : RETURN expression SEMICOLON
     '''
     expr_type, expr_address = data_processor.process_data(t[2])
-    f_name = function_stack[-1]
-    
+    try:
+        f_name = function_stack[-1]
+    except IndexError:
+        raise_program_error(ProgramErrorType.UNSUPPORTED_OPERATION, t.lineno(1), "Return statements must be inside a function")
     if function_directory.check_function_exists(f_name):
         function = function_directory.get_function_from_directory(f_name)
         if function.return_type == "void":
-            raise Exception("A return statement cannot be used inside a function of type void.")
+            raise_program_error(ProgramErrorType.UNSUPPORTED_OPERATION, t.lineno(1), f"A return statement cannot be used inside function '{f_name}' because it is of type void")
         elif function.return_address is not None and expr_type == function.return_type:
             quadruples.add_quad(Quad("=", expr_address, None, function.return_address))
             quadruples.add_quad(Quad("ENDSUB", None, None, None))
             function.return_bool = True
         else:
-            raise Exception(f"The item returned for the function named '{f_name}' does not match its expected return type.")
-    else:
-        raise Exception("Return statements must be inside a function.")
+            raise_program_error(ProgramErrorType.RETURN_TYPE_MISMATCH, t.lineno(1), f"The item returned for the function '{f_name}' does not match its expected return type")
 
 def p_function(t):
     '''
@@ -446,16 +448,11 @@ def p_function(t):
     '''
     f_name = function_stack.pop()
     function = function_directory.get_function_from_directory(f_name)
-    
     if function.return_type != "void" and not function.return_bool:
-        raise Exception(f"Function of type '{function.return_type}' is missing a return statement.")
-    
+        raise_program_error(ProgramErrorType.RETURN_STATEMENT_MISSING, t.lineno(0), f"The function named '{f_name}' is missing a return statement")
     function.resources = temporal_memory_manager.get_resources()
-    
     if function.return_type == "void":
         quadruples.add_quad(Quad("ENDSUB", None, None, None))
-    
-    # temporal_memory_manager.print()
     temporal_memory_manager.clear_memory_values()
     context_stack.pop()
 
@@ -486,7 +483,7 @@ def p_function_np1(t):
     f_params = t[-1]
     # Check there isn't another function with same name
     if function_directory.check_function_exists(f_name):
-        raise Exception(f"There is already a function with the name '{f_name}' in the directory.")
+        raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(0), f"There is already a function named '{f_name}' in the directory")
     # Reserve space for return
     if f_type == "void":
         return_address = None
@@ -499,7 +496,9 @@ def p_function_np1(t):
     context_stack.push(f_context)
     # Update function parameters
     for p_type, p_name in f_params:
-        variable = context_stack.add_variable_to_stack(p_name, p_type)
+        if context_stack.check_variable_exists(p_name):
+            raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(0), f"There is already a parameter named '{p_name}' in the directory")
+        variable = context_stack.add_variable_to_stack(p_name, p_type)   
         function.parameters.append(Variable(p_name, p_type, variable.address))
     # Save in function stack
     function_stack.append(f_name)
@@ -553,19 +552,23 @@ def p_variables(t):
         v_type = t[2]
         variables = t[4]
         for var in variables:
+            if context_stack.check_variable_exists(var):
+                raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(1), f"There is already a variable named '{var}' in the directory")
             context_stack.add_variable_to_stack(var, v_type)
     # For class objects
     else:
         c_name = t[2]
         variables = t[4]
         if not class_directory.check_class_exists(c_name):
-            raise Exception("The class '{c_name}' has not been declared.")
+            raise_program_error(ProgramErrorType.UNDECLARED_IDENTIFIER, t.lineno(1), f"The class '{c_name}' has not been declared")
         class_detail = class_directory.get_class_from_directory(c_name)
         for var in variables:
+            if context_stack.check_variable_exists(var):
+                raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(1), f"There is already a variable named '{var}' in the directory")
             context_stack.add_variable_to_stack(var, c_name)
             for value in class_detail.variable_table.table.values():
                 context_stack.add_variable_to_stack(f"{var}.{value.name}", value.type)
-
+                    
 def p_variables_1(t):
     '''
     variables_1 : ID COMMA variables_1
@@ -619,17 +622,15 @@ def p_var(t):
         pass
     
     if not context_stack.check_variable_exists(v_name):
-        raise Exception(f"The variable '{v_name}' has not been declared.")
+        raise_program_error(ProgramErrorType.UNDECLARED_IDENTIFIER, t.lineno(1), f"The variable '{v_name}' has not been declared")
     variable = context_stack.get_variable_from_context(v_name)
     t[0] = variable
-    print(t[0])
 
 def p_class(t):
     '''
-    class : CLASS ID class_np1 class_np2 LBRACE class_attributes class_np3 RBRACE SEMICOLON
+    class : CLASS ID class_np1 LBRACE class_attributes class_np2 RBRACE SEMICOLON
     '''
     # Once class has been processed
-    class_stack.pop()
     context_stack.pop()
 
 def p_class_attributes(t):
@@ -641,35 +642,32 @@ def p_class_attributes(t):
         t[0] = [t[1], *t[3]]
     else:
         t[0] = [t[1]]
-    
+
+# Add class to directory and to context stack  
 def p_class_np1(t):
     '''
     class_np1 :
     '''
     c_name = t[-1]
     if class_directory.check_class_exists(c_name):
-        raise Exception(f"There is already a class named '{c_name}' in the directory.")
+        raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(0), f"There is already a class named '{c_name}' in the directory")
     class_directory.add_class_to_directory(c_name)
-    class_stack.append(c_name)
+    class_detail = class_directory.get_class_from_directory(c_name)
+    context_stack.push(Context("Class", global_memory_manager, class_detail.variable_table))
     t[0] = c_name
 
+# Add attributes to context stack
 def p_class_np2(t):
     '''
     class_np2 :
-    '''
-    c_name = t[-1]
-    class_detail = class_directory.get_class_from_directory(c_name)
-    context_stack.push(Context("Class", global_memory_manager, class_detail.variable_table))
-
-def p_class_np3(t):
-    '''
-    class_np3 :
     '''
     attributes = t[-1]
     for atr in attributes:
         a_type, a_name = atr
         if data_processor.check_type_simple(a_type):
-            context_stack.add_variable_to_stack(a_name, a_type)
+            if context_stack.check_variable_exists(a_name):
+                raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(0), f"There is already an attribute named '{a_name}' in the directory")
+            context_stack.add_variable_to_stack(a_name, a_type)     
 
 def p_const(t):
     '''
@@ -722,11 +720,12 @@ def p_assignment(t):
     left_type, left_address = data_processor.process_data(t[1])
     right_type, right_address = data_processor.process_data(t[3])
     operation_type = SemanticCube().get_result_type(left_type, t[2], right_type)
+    if operation_type == "TypeMismatch":
+        raise_program_error(ProgramErrorType.TYPE_MISMATCH, t.lineno(1), "Operand does not match data type")
+    # Make sure element to assign value to is a variable that exists in context
     if left_name is not None and context_stack.check_variable_exists(left_name):
         quadruples.add_quad(Quad("=", right_address, None, left_address))
         t[0] = (operation_type, left_address)
-    else:
-        raise Exception(f"Only variables may be assigned to.")
 
 def p_expr_unique(t):
     '''
@@ -759,13 +758,15 @@ def p_expr_operations(t):
     left_type, left_address = data_processor.process_data(t[1])
     right_type, right_address = data_processor.process_data(t[3])
     operation_type = SemanticCube().get_result_type(left_type, t[2], right_type)
+    if operation_type == "TypeMismatch":
+        raise_program_error(ProgramErrorType.TYPE_MISMATCH, t.lineno(1), "Operand does not match data type")
     address = temporal_memory_manager.reserve_space(operation_type)
     quadruples.add_quad(Quad(t[2], left_address, right_address, address))
     t[0] = (operation_type, address)
 
 # Syntax error
 def p_error(t):
-    print(f'Syntax error at {t} for {t.value!r} in line {t.lineno}')
+    raise_program_error(ProgramErrorType.SYNTAX_ERROR, t.lineno, f"Invalid syntax in value '{t.value}'")
 
 # Build the parser
 import ply.yacc as yacc
@@ -775,11 +776,10 @@ parser = yacc.yacc()
 if __name__ == '__main__':
     if len(sys.argv) == 2:
         name = sys.argv[1]
-        # Read and run text file
         try:
             with open(name, 'r') as file:
                 file_content = file.read()
-                if parser.parse(file_content) == "END":
+                if parser.parse(file_content, tracking=True) == "END":
                     print("\nThe data from the .txt file is valid for Adeo language.")
                 else:
                     print("\nThe data from the .txt file is invalid for Adeo language.")

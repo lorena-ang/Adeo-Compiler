@@ -23,8 +23,6 @@ class ClassDirectory:
 
     # Add class to directory by name
     def add_class_to_directory(self, name: str):
-        if name in self.dir:
-            raise Exception(f"There is already a class with the name '{name}'.")
         self.dir[name] = ClassDetail(name)
         
     # Check if a class exists in the directory

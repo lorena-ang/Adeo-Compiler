@@ -56,7 +56,7 @@ class SemanticCube:
         try:
             result = self.semantic_cube[self.change_to_number(left)][operation][self.change_to_number(right)]
         except KeyError:
-            raise TypeError("Type mismatch error: Operand doesn't match data type.")
+            return "TypeMismatch"
         return self.change_to_string(result)
 
     # Check if an operation is valid

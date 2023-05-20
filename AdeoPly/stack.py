@@ -62,7 +62,6 @@ class Stack:
         for context in reversed(self.contexts):
             if context.check_variable_exists(name):
                 return context.get_variable_from_name(name)
-        raise Exception(f"There is no variable named '{name}' in any context.")
 
     # Add a variable to stack in last context
     def add_variable_to_stack(self, name: str, type: str) -> Variable:
