@@ -1,4 +1,4 @@
-from typing import TypeVar, Tuple, Generic
+from typing import TypeVar, Tuple, Generic, Optional
 
 TV = TypeVar("TV")
 SIZE = 1000
@@ -7,9 +7,12 @@ class TypeSpace(Generic[TV]):
     initial_address: int
     values: list[TV]
     
-    def __init__(self, start: int) -> None:
+    def __init__(self, start: int, resource_size: Optional[int] = None) -> None:
         self.initial_address = start
-        self.values = []
+        if resource_size is None:
+            self.values = []
+        else:
+            self.values = [None for _ in range(resource_size)]
 
 class MemoryManager:
     ints_space: TypeSpace[int]
@@ -17,11 +20,17 @@ class MemoryManager:
     strings_space: TypeSpace[str]
     bools_space: TypeSpace[bool]
 
-    def __init__(self, base_address: int) -> None:
-        self.ints_space = TypeSpace(base_address)
-        self.floats_space = TypeSpace(base_address  + SIZE)
-        self.strings_space = TypeSpace(base_address + SIZE * 2)
-        self.bools_space = TypeSpace(base_address + SIZE * 3)
+    def __init__(self, base_address: int, resources: Optional[Tuple[int, int, int, int]] = None) -> None:
+        if resources is None:
+            self.ints_space = TypeSpace(base_address)
+            self.floats_space = TypeSpace(base_address  + SIZE)
+            self.strings_space = TypeSpace(base_address + SIZE * 2)
+            self.bools_space = TypeSpace(base_address + SIZE * 3)
+        else:
+            self.ints_space = TypeSpace(base_address, resources[0])
+            self.floats_space = TypeSpace(base_address  + SIZE, resources[1])
+            self.strings_space = TypeSpace(base_address + SIZE * 2, resources[2])
+            self.bools_space = TypeSpace(base_address + SIZE * 3, resources[3])
 
     # From a memory index you will get the type space with initial address and all variables stored
     def get_typespace_from_address(self, address: int) -> TypeSpace:
@@ -33,6 +42,17 @@ class MemoryManager:
             return self.strings_space
         else:
             return self.bools_space
+        
+    # From a memory index you will get the type
+    def get_type_from_address(self, address: int) -> str:
+        if address < self.floats_space.initial_address:
+            return "int"
+        elif address < self.strings_space.initial_address:
+            return "float"
+        elif address < self.bools_space.initial_address:
+            return "string"
+        else:
+            return "bool"
 
     # From a value you will get the type space with initial address and all variables stored
     def get_typespace_from_value(self, value: int | float | str | bool) -> TypeSpace:
@@ -59,11 +79,6 @@ class MemoryManager:
             return self.bools_space
         else:
             raise TypeError("Type doesn't exist.")
-
-    # From an address you will get the value of the item
-    def get_value_from_address(self, address: int) -> int | float | str | bool:
-        buffer = self.get_typespace_from_address(address)
-        return buffer.values[address - buffer.initial_address]
     
     # Get the number of resources per type
     def get_resources(self) -> Tuple[int, int, int, int]:
@@ -90,21 +105,31 @@ class MemoryManager:
             address = self.add_value_to_typespace(typespace, value)
             return address
         
+    # From an address you will get the value of the item
+    def __getitem__(self, address: int) -> int | float | str | bool | None:
+        typespace = self.get_typespace_from_address(address)
+        try:
+            return typespace.values[address - typespace.initial_address]
+        except IndexError:
+            return None
+    
+    # Set the value for an address
     def __setitem__(self, address: int, value: int) -> None:
+
         typespace = self.get_typespace_from_address(address)
         if typespace == self.bools_space:
-            if not isinstance(value, bool):
-                value = True if value == "true" else False
+            if value != None:
+                if not isinstance(value, bool):
+                    value = True if value == "true" else False
         elif typespace == self.ints_space:
-            value = int(value)
+            if value != None:
+                value = int(value)
         elif typespace == self.floats_space:
-            value = float(value)
+            if value != None:
+                value = float(value)
         elif typespace == self.strings_space:
-            value = str(value)
-        elif typespace == self.ptrs_space:
-            self[typespace.values[address - typespace.initial_address]] = value
-            return
-
+            if value != None:
+                value = str(value)
         typespace.values[address - typespace.initial_address] = value
 
     # Reserves space for a variable that hasn't been assigned yet (only declared)
@@ -118,6 +143,7 @@ class MemoryManager:
         self.strings_space.values.clear()
         self.bools_space.values.clear()
     
+    '''
     # DELETE: Print for debugging
     def __str__(self) -> str:
         output = "---- Memory Manager ----"
@@ -133,6 +159,19 @@ class MemoryManager:
         output += "\nbools"
         for addr, val in enumerate(self.bools_space.values):
             output += f"\n{addr + self.bools_space.initial_address}\t{val}"
+        return output
+    '''
+
+    def __str__(self) -> str:
+        output = ""
+        for addr, val in enumerate(self.ints_space.values):
+            output += f"\n{addr + self.ints_space.initial_address}-{val}"
+        for addr, val in enumerate(self.floats_space.values):
+            output += f"\n{addr + self.floats_space.initial_address}-{val}"
+        for addr, val in enumerate(self.strings_space.values):
+            output += f"\n{addr + self.strings_space.initial_address}-{val}"
+        for addr, val in enumerate(self.bools_space.values):
+            output += f"\n{addr + self.bools_space.initial_address}-{val}"
         return output
     
     # DELETE: Print for debugging

@@ -1,0 +1,55 @@
+Class Perro 
+{
+	int: edad,
+	string: color
+};
+
+Class Gato
+{
+	int: edad,
+	string: color
+};
+
+var int: i, j, k;
+var Perro: perro1;
+
+int function uno(int j)
+{
+	var int: i;
+
+	i = j + (k - j * 2 + j);
+
+	if (j > 0)
+	{
+		return (uno(i - j));
+	}
+	else
+	{
+		return (i + k);
+	}
+}
+
+void function dos(int i, int j)
+{
+	var int: x, y;
+
+	x = i + j;
+
+	if (x > j * k)
+	{
+		print(uno(x - k));
+	}
+	else
+	{
+		print(uno(j));
+	}
+}
+
+main()
+{
+	read(k);
+	i = 5;
+	j = i * 2 + i;
+
+	dos(j - i, j);
+}

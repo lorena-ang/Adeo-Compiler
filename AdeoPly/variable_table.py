@@ -1,5 +1,3 @@
-from typing import Tuple
-
 class Variable:
     name: str
     type: str
@@ -9,10 +7,9 @@ class Variable:
         self.name = name
         self.type = type
         self.address = address
-    
-    # DELETE: Print for debugging
+
     def __str__(self) -> str:
-        return f"name = {self.name}, type = {self.type}, address = {self.address}"
+        return f"{self.name},{self.type},{self.address}"
 
 class VariableTable:
     table: dict[str, Variable]
@@ -42,11 +39,9 @@ class VariableTable:
     def check_variable_exists(self, name: str) -> bool:
         return name in self.table
 
-    # DELETE: Print for debugging
     def __str__(self) -> str:
-        var = "\n---- Variable Table ----\n"
-        for key, value in self.table.items():
-            var += f"{value}\n"
+        addresses = [str(value.address) for value in self.table.values()]
+        var = "(" + ",".join(addresses) + ")"
         return var
 
     # DELETE: Print for debugging

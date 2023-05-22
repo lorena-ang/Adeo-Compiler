@@ -11,7 +11,7 @@ class Quad:
         self.return_address = return_address
         
     def __str__(self) -> str:
-        return f"({self.operator}, {self.left_address}, {self.right_address}, {self.return_address})"
+        return f"({self.operator},{self.left_address},{self.right_address},{self.return_address})"
 
 class Quadruples:
     instr_ptr: int
@@ -37,10 +37,16 @@ class Quadruples:
     # Set quadruple value in an address
     def __setitem__(self, address: int, quad: Quad) -> None:
         self.quadruples[address] = quad
+        
+    def __str__(self) -> str:
+        result = "\n"
+        for quad in self.quadruples:
+            result += f"{str(quad)}\n"
+        return result
 
     # DELETE: Print for debugging
     def print(self) -> None:
-        print("\nQuadruples")
+        print("\n----Quadruples----")
         i = 0
         for quad in self.quadruples:
             print(str(i) + " " + str(quad))

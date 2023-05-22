@@ -32,6 +32,13 @@ class ClassDirectory:
         else:
             return True
         
+    def __str__(self) -> str:
+        output = ""
+        for class_name, class_detail in self.dir.items():
+            output += f"\n{class_name},"
+            output += f"{class_detail.variable_table}"
+        return output
+        
     def print(self) -> None:
         for c in self.dir.items():
-            print(f"# {c.name}")
+            print(f"{c.name}")

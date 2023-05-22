@@ -15,3 +15,19 @@ class DataProcessor:
     # Checks that a string with the type is simple
     def check_type_simple(self, type: str) -> bool:
         return (type == "int" or type == "float" or type == "string" or type == "bool")
+    
+    # Return the value in a specific data type
+    def change_to_type(self, type: str, value: str):
+        if type == 'int':
+            return int(value) if value != 'None' else None
+        elif type == 'float':
+            return float(value) if value != 'None' else None
+        elif type == 'string':
+            return str(value) if value != 'None' else None
+        else:
+            if value == "true":
+                return "true"
+            elif value == "false":
+                return "false"
+            else:
+                return None

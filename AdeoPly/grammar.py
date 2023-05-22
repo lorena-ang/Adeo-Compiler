@@ -14,6 +14,7 @@ from class_directory import ClassDirectory
 from stack import Context, Stack
 from data_processor import DataProcessor
 from program_error import raise_program_error, ProgramErrorType
+from typing import Tuple
 
 #
 # LEXER
@@ -128,6 +129,10 @@ context_stack = Stack()
 context_stack.push(Context("Global", global_memory_manager))
 
 quadruples = Quadruples()
+quadruples.add_quad(Quad("ERA", None, None, None))
+quadruples.add_quad(Quad("GOSUB", None, None, None))
+main_resources: str = ""
+main_initial_quad: int = 0
 
 # Class management
 class_directory = ClassDirectory()
@@ -146,7 +151,7 @@ data_processor = DataProcessor()
 
 def p_program(t):
     '''
-    program : class_decl variables_decl function_decl MAIN LPAREN RPAREN block end_program
+    program : class_decl variables_decl function_decl main m_block end_program
     '''
     t[0] = "END"
 
@@ -159,15 +164,21 @@ def p_program_decl(t):
     function_decl : function function_decl
                   |
     '''
+    
+def p_main(t):
+    '''
+    main : MAIN LPAREN RPAREN
+    '''
+    address = global_memory_manager.find_address_or_add_value_to_memory("main")
+    function_directory.add_function_to_directory("main","void",None,address,context_stack.contexts[-1])
+    function_directory.get_function_from_directory("main").initial_quad_address = quadruples.instr_ptr
+    quadruples[1] = Quad("GOSUB", None, None, address)
 
 def p_end_program(t):
     '''
     end_program :
     '''
-    global_memory_manager.print("Global")
-    constant_memory_manager.print("Constant")
-    quadruples.print()
-    # context_stack.print()
+    quadruples.add_quad(Quad("ENDPROG", None, None, None))
 
 def p_statement(t):
     '''
@@ -186,6 +197,7 @@ def p_block(t):
     block : LBRACE b_push_context variables_decl block_1 RBRACE b_pop_context
     block_1 : statement block_1
             |
+    m_block : LBRACE b_push_context variables_decl block_1 RBRACE mb_pop_context
     l_block : LBRACE l_push_context block_1 RBRACE l_pop_context
     c_block : LBRACE block_1 RBRACE
     '''
@@ -198,8 +210,17 @@ def p_b_push_context(t):
     
 def p_b_pop_context(t):
     '''
-    b_pop_context : 
+    b_pop_context :
     '''
+    context_stack.pop()
+
+def p_mb_pop_context(t):
+    '''
+    mb_pop_context :
+    '''
+    address = global_memory_manager.find_address_or_add_value_to_memory("main")
+    quadruples[0] = Quad("ERA", None, None, address)
+    function_directory.get_function_from_directory("main").resources = context_stack.contexts[-1].context_memory_manager.get_resources()
     context_stack.pop()
     
 def p_l_push_context(t):
@@ -215,7 +236,8 @@ def p_l_pop_context(t):
     '''
     context_stack.pop()
     for _ in range(end_count.pop()):
-        quadruples[end_jumps.pop()] = Quad("GOTO", None, None, quadruples.instr_ptr)
+        address = constant_memory_manager.find_address_or_add_value_to_memory(quadruples.instr_ptr)
+        quadruples[end_jumps.pop()] = Quad("GOTO", None, None, address)
 
 def p_conditional(t):
     '''
@@ -223,7 +245,8 @@ def p_conditional(t):
     '''
     last_jump = jumps.pop()
     quad = quadruples[last_jump]
-    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, quadruples.instr_ptr)
+    address = constant_memory_manager.find_address_or_add_value_to_memory(quadruples.instr_ptr)
+    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, address)
     
 def p_conditional_1(t):
     '''
@@ -251,7 +274,8 @@ def p_conditional_np2(t):
     quadruples.add_quad(Quad("GOTO", None, None, None))
     last_jump = jumps.pop()
     quad = quadruples[last_jump]
-    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, quadruples.instr_ptr)
+    address = constant_memory_manager.find_address_or_add_value_to_memory(quadruples.instr_ptr)
+    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, address)
 
 def p_conditional_np3(t):
     '''
@@ -261,7 +285,8 @@ def p_conditional_np3(t):
     last_jump = jumps.pop()
     jumps.append(quadruples.instr_ptr - 1)
     quad = quadruples[last_jump]
-    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, quadruples.instr_ptr)
+    address = constant_memory_manager.find_address_or_add_value_to_memory(quadruples.instr_ptr)
+    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, address)
 
 def p_write(t):
     '''
@@ -272,10 +297,10 @@ def p_write(t):
         raise_program_error(ProgramErrorType.UNSUPPORTED_OPERATION, t.lineno(1), "The data to be printed is invalid")
     for elem in elements:
         if type(elem) == tuple:
-            quadruples.add_quad(Quad("PRINT", elem[1], None, None))
+            quadruples.add_quad(Quad("PRINT", None, None, elem[1]))
         elif type(elem) == Variable:
             address = elem.address
-            quadruples.add_quad(Quad("PRINT", address, None, None))
+            quadruples.add_quad(Quad("PRINT", None, None, address))
 
 def p_write_1(t):
     '''
@@ -295,7 +320,7 @@ def p_read(t):
     if variable is None:
         raise_program_error(ProgramErrorType.UNDECLARED_IDENTIFIER, t.lineno(1), f"The variable '{t[3]}' has not been declared")
     address = variable.address
-    quadruples.add_quad(Quad("READ", address, None, None))
+    quadruples.add_quad(Quad("READ", None, None, address))
 
 def p_l_while(t):
     '''
@@ -303,9 +328,11 @@ def p_l_while(t):
     '''
     last_jump = jumps.pop()
     second_last_jump = jumps.pop()
-    quadruples.add_quad(Quad("GOTO", None, None, second_last_jump))
+    address = constant_memory_manager.find_address_or_add_value_to_memory(second_last_jump)
+    quadruples.add_quad(Quad("GOTO", None, None, address))
     quad = quadruples[last_jump]
-    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, quadruples.instr_ptr)
+    address = constant_memory_manager.find_address_or_add_value_to_memory(quadruples.instr_ptr)
+    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, address)
     
 def p_l_while_np1(t):
     '''
@@ -332,9 +359,11 @@ def p_l_for(t):
     quadruples.add_quad(Quad("+", left_address, one_address, address))
     quadruples.add_quad(Quad("=", address, one_address, left_address))
     # Update quadruples
-    quadruples.add_quad(Quad("GOTO", None, None, first_jump))
+    address = constant_memory_manager.find_address_or_add_value_to_memory(first_jump)
+    quadruples.add_quad(Quad("GOTO", None, None, address))
     quad = quadruples[last_jump]
-    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, quadruples.instr_ptr)
+    address = constant_memory_manager.find_address_or_add_value_to_memory(quadruples.instr_ptr)
+    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, address)
 
 def p_l_for_np1(t):
     '''
@@ -436,7 +465,7 @@ def p_return(t):
             raise_program_error(ProgramErrorType.UNSUPPORTED_OPERATION, t.lineno(1), f"A return statement cannot be used inside function '{f_name}' because it is of type void")
         elif function.return_address is not None and expr_type == function.return_type:
             quadruples.add_quad(Quad("=", expr_address, None, function.return_address))
-            quadruples.add_quad(Quad("ENDSUB", None, None, None))
+            quadruples.add_quad(Quad("ENDFUNC", None, None, None))
             function.return_bool = True
         else:
             raise_program_error(ProgramErrorType.RETURN_TYPE_MISMATCH, t.lineno(1), f"The item returned for the function '{f_name}' does not match its expected return type")
@@ -452,7 +481,7 @@ def p_function(t):
         raise_program_error(ProgramErrorType.RETURN_STATEMENT_MISSING, t.lineno(0), f"The function named '{f_name}' is missing a return statement")
     function.resources = temporal_memory_manager.get_resources()
     if function.return_type == "void":
-        quadruples.add_quad(Quad("ENDSUB", None, None, None))
+        quadruples.add_quad(Quad("ENDFUNC", None, None, None))
     temporal_memory_manager.clear_memory_values()
     context_stack.pop()
 
@@ -496,9 +525,9 @@ def p_function_np1(t):
     context_stack.push(f_context)
     # Update function parameters
     for p_type, p_name in f_params:
-        if context_stack.check_variable_exists(p_name):
+        if context_stack.contexts[-1].check_variable_exists(p_name):
             raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(0), f"There is already a parameter named '{p_name}' in the directory")
-        variable = context_stack.add_variable_to_stack(p_name, p_type)   
+        variable = context_stack.contexts[-1].add_variable_to_context(p_name, p_type)   
         function.parameters.append(Variable(p_name, p_type, variable.address))
     # Save in function stack
     function_stack.append(f_name)
@@ -552,9 +581,9 @@ def p_variables(t):
         v_type = t[2]
         variables = t[4]
         for var in variables:
-            if context_stack.check_variable_exists(var):
+            if context_stack.contexts[-1].check_variable_exists(var):
                 raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(1), f"There is already a variable named '{var}' in the directory")
-            context_stack.add_variable_to_stack(var, v_type)
+            context_stack.contexts[-1].add_variable_to_context(var, v_type)
     # For class objects
     else:
         c_name = t[2]
@@ -565,9 +594,9 @@ def p_variables(t):
         for var in variables:
             if context_stack.check_variable_exists(var):
                 raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(1), f"There is already a variable named '{var}' in the directory")
-            context_stack.add_variable_to_stack(var, c_name)
+            context_stack.contexts[-1].add_variable_to_context(var, c_name)
             for value in class_detail.variable_table.table.values():
-                context_stack.add_variable_to_stack(f"{var}.{value.name}", value.type)
+                context_stack.contexts[-1].add_variable_to_context(f"{var}.{value.name}", value.type)
                     
 def p_variables_1(t):
     '''
@@ -667,7 +696,7 @@ def p_class_np2(t):
         if data_processor.check_type_simple(a_type):
             if context_stack.check_variable_exists(a_name):
                 raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(0), f"There is already an attribute named '{a_name}' in the directory")
-            context_stack.add_variable_to_stack(a_name, a_type)     
+            context_stack.contexts[-1].add_variable_to_context(a_name, a_type)     
 
 def p_const(t):
     '''
@@ -682,24 +711,21 @@ def p_int_const(t):
     '''
     int_const : INT_CONST
     '''
-    value = int(t[1])
-    address = constant_memory_manager.find_address_or_add_value_to_memory(value)
+    address = constant_memory_manager.find_address_or_add_value_to_memory(int(t[1]))
     t[0] = ("int", address)
 
 def p_float_const(t):
     '''
     float_const : FLOAT_CONST
     '''
-    value = float(t[1])
-    address = constant_memory_manager.find_address_or_add_value_to_memory(value)
+    address = constant_memory_manager.find_address_or_add_value_to_memory(float(t[1]))
     t[0] = ("float", address)
 
 def p_string_const(t):
     '''
     string_const : STRING_CONST
     '''
-    value = str(t[1])
-    address = constant_memory_manager.find_address_or_add_value_to_memory(value)
+    address = constant_memory_manager.find_address_or_add_value_to_memory(str(t[1]))
     t[0] = ("string", address)
 
 def p_bool_const(t):
@@ -707,8 +733,7 @@ def p_bool_const(t):
     bool_const : TRUE
                | FALSE
     '''
-    value = str(t[1])
-    address = constant_memory_manager.find_address_or_add_value_to_memory(value)
+    address = constant_memory_manager.find_address_or_add_value_to_memory(str(t[1]))
     t[0] = ("bool", address)
     
 def p_assignment(t):
@@ -767,23 +792,25 @@ def p_expr_operations(t):
 # Syntax error
 def p_error(t):
     raise_program_error(ProgramErrorType.SYNTAX_ERROR, t.lineno, f"Invalid syntax in value '{t.value}'")
+    
+def get_data_to_compiler():
+    data: list[str] = []
+    d_temp = "--Global Memory--"
+    d_temp += "\n(" + ",".join(str(item) for item in global_memory_manager.get_resources()) + ")"
+    d_temp += str(global_memory_manager)
+    data.append(d_temp)
+    d_temp = "\n--Constants--"
+    d_temp += "\n(" + ",".join(str(item) for item in constant_memory_manager.get_resources()) + ")"
+    d_temp += str(constant_memory_manager)
+    data.append(d_temp)
+    d_temp = "\n--Functions--" + str(function_directory)
+    data.append(d_temp)
+    d_temp = "\n--Classes--" + str(class_directory)
+    data.append(d_temp)
+    d_temp = "\n--Quadruples--" + str(quadruples)
+    data.append(d_temp)
+    return data
 
 # Build the parser
 import ply.yacc as yacc
 parser = yacc.yacc()
-
-# To test: python3 grammar.py test.txt
-if __name__ == '__main__':
-    if len(sys.argv) == 2:
-        name = sys.argv[1]
-        try:
-            with open(name, 'r') as file:
-                file_content = file.read()
-                if parser.parse(file_content, tracking=True) == "END":
-                    print("\nThe data from the .txt file is valid for Adeo language.")
-                else:
-                    print("\nThe data from the .txt file is invalid for Adeo language.")
-        except (EOFError, FileNotFoundError) as e:
-            print(e)
-    else:
-        print("ERROR: Filename not added correctly.")
