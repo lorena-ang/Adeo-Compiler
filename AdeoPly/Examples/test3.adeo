@@ -8,9 +8,13 @@ main()
 	i2 = 2;
 	i3 = 3;
 
-    if (i1 > i2)
+    if (i1 == i2)
     {
         i1 = i2 * i3;
+    }
+    elseif (i1 > i2)
+    {
+        i1 = 3;
     }
     else
     {

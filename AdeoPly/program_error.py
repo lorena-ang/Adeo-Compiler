@@ -1,8 +1,4 @@
-class ProgramError(Exception):
-    error_type: str
-    line_num: int
-    description: str
-    
+class ProgramError(Exception):    
     def __init__(self, error_type: str, line_num: int, description: str):
         self.error_type = error_type
         self.line_num = line_num

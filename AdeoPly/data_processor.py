@@ -2,7 +2,6 @@ from typing import Tuple
 from variable_table import Variable
 
 class DataProcessor:
-
     # Returns a tuple with the type and address if data is a variable
     def process_data(self, data) -> Tuple[str, int]:
         if isinstance(data, Variable):
@@ -14,7 +13,8 @@ class DataProcessor:
             
     # Checks that a string with the type is simple
     def check_type_simple(self, type: str) -> bool:
-        return (type == "int" or type == "float" or type == "string" or type == "bool")
+        simple_types = {"int", "float", "string", "bool"}
+        return type in simple_types
     
     # Return the value in a specific data type
     def change_to_type(self, type: str, value: str):

@@ -1,15 +1,12 @@
 from typing import Optional
 from variable_table import Variable, VariableTable
 from memory_manager import MemoryManager
+from array_manager import ArrayManager
 from data_processor import DataProcessor
 
 data_processor = DataProcessor()
 
 class Context:
-    scope: str
-    context_memory_manager: MemoryManager
-    variable_table: VariableTable
-    
     def __init__(self, scope: str, context_memory_manager: MemoryManager, variable_table: Optional[VariableTable] = None) -> None:
         self.scope = scope
         self.context_memory_manager = context_memory_manager
@@ -24,14 +21,17 @@ class Context:
         return self.variable_table.get_variable_from_name(name)
 
     # Add a new variable to the context
-    def add_variable_to_context(self, name: str, type: str) -> Variable:
+    def add_variable_to_context(self, name: str, type: str, array_manager: Optional[ArrayManager] = None) -> Variable:
         if self.scope != "Class" and data_processor.check_type_simple(type):
-            address = self.context_memory_manager.reserve_space(type)
+            if array_manager is None:
+                address = self.context_memory_manager.reserve_space(type)
+            else:
+                address = self.context_memory_manager.reserve_space(type, array_manager.size)
         elif self.scope == "Class":
             address = self.context_memory_manager.reserve_space(type)
         else:
             address = 0
-        variable = self.variable_table.add_variable(name, type, address)
+        variable = self.variable_table.add_variable(name, type, address, array_manager)
         return variable
     
     # DELETE: Print for debugging
@@ -39,8 +39,6 @@ class Context:
         return f"Scope: {self.scope}{self.variable_table}{self.context_memory_manager}"
 
 class Stack:
-    contexts: list[Context]
-    
     def __init__(self) -> None:
         self.contexts = []
 
@@ -48,7 +46,10 @@ class Stack:
         self.contexts.append(context)
 
     def pop(self) -> Context:
-        return self.contexts.pop()
+        if self.contexts:
+            return self.contexts.pop()
+        else:
+            raise IndexError("Cannot pop from an empty stack")
 
     # Check if a variable exists in any context
     def check_variable_exists(self, name: str) -> bool:
@@ -62,10 +63,6 @@ class Stack:
         for context in reversed(self.contexts):
             if context.check_variable_exists(name):
                 return context.get_variable_from_name(name)
-
-    # Add a variable to stack in last context
-    def add_variable_to_stack(self, name: str, type: str) -> Variable:
-        return self.contexts[-1].add_variable_to_context(name, type)
     
     def print(self) -> None:
         for i, context in enumerate(self.contexts):
