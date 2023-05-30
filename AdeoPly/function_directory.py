@@ -48,10 +48,7 @@ class FunctionDirectory:
             output += f"{key},"
             output += f"{value.return_type},"
             output += f"({','.join(str(res) for res in value.resources)}),"
-            output += f"[{','.join([param.type for param in value.parameters])}],"
-            output += f"{value.address},"
-            output += f"{value.initial_quad_address},"
-            output += f"{value.return_address}"
+            output += f"{value.initial_quad_address}"
         return output
 
     # DELETE: Print for debugging
@@ -96,3 +93,4 @@ class FunctionDirectoryVM:
             output += f"{value.initial_quad_address},"
             output += f"({','.join(str(res) for res in value.resources)})"
         return output
+        

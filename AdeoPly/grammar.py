@@ -413,7 +413,7 @@ def p_l_for_np3(t):
     '''
     l_for_np3 :
     '''
-    left_type, left_address = data_processor.process_data(t[-4])
+    left_type, left_address = data_processor.process_data(t[-6])
     right_type, right_address = data_processor.process_data(t[-1])
     # Determine the result type based on the left and right types
     operation_type = SemanticCube().get_result_type(left_type, "<", right_type)
@@ -860,11 +860,9 @@ def p_error(t):
 def get_data_to_compiler():
     data: list[str] = []
     d_temp = "--Global Memory--"
-    d_temp += "\n(" + ",".join(str(item) for item in global_memory_manager.get_resources()) + ")"
     d_temp += str(global_memory_manager)
     data.append(d_temp)
     d_temp = "\n--Constants--"
-    d_temp += "\n(" + ",".join(str(item) for item in constant_memory_manager.get_resources()) + ")"
     d_temp += str(constant_memory_manager)
     data.append(d_temp)
     d_temp = "\n--Functions--" + str(function_directory)

@@ -1,23 +1,21 @@
-var int: i1, i2;
-var float: f1;
-var string: s1, s2;
+int function sum(int i)
+{
+    var int: x;
+
+    for x = 0 to 10 do
+	{
+        i = i + 1;
+        print(x, "\n");
+	}
+
+    return i;
+}
 
 main()
 {
-    var int: i3;
-    var float: f2;
-    var bool: b1;
+    var int: suma;
 
-    b1 = true;
-    b1 = 4 > 1 && 5 < 2;
+    suma = sum(0);
 
-    i1 = 1 + 1;
-    f2 = i1 * 28.5 + 5;
-    i3 = i1;
-
-    s1 = "true";
-    read(s2);
-    print(s1, 1);
-
-    f1 = f2;
+    print("final: ", suma, "\n");
 }
