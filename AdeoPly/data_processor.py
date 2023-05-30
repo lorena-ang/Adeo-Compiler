@@ -1,5 +1,6 @@
 from typing import Tuple
 from variable_table import Variable
+import re
 
 class DataProcessor:
     # Returns a tuple with the type and address if data is a variable
@@ -23,7 +24,9 @@ class DataProcessor:
         elif type == 'float':
             return float(value) if value != 'None' else None
         elif type == 'string':
-            return str(value) if value != 'None' else None
+            if value.startswith('"') and value.endswith('"'):
+                value = value[1:-1]
+            return value if value != 'None' else None
         else:
             if value == "true":
                 return "true"

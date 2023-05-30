@@ -9,7 +9,7 @@ int function suma(int a, int b)
     return c;
 }
 
-void function hola()
+void function hola(int a)
 {
     print("hola");
 }
@@ -17,4 +17,5 @@ void function hola()
 main()
 {
     xa = suma(1, 2);
+    hola(1);
 }

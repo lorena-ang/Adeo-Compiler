@@ -23,7 +23,7 @@ if __name__ == '__main__':
                             section_data[current_section].append(line.strip())
 
                     virtual_machine.process_section_data(section_data)
-                    virtual_machine.start_execution()
+                virtual_machine.start_execution()
             except (EOFError, FileNotFoundError) as e:
                 print(e)
         else:

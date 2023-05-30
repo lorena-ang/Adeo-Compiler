@@ -15,7 +15,6 @@ from stack import Context, Stack
 from array_manager import ArrayManager
 from data_processor import DataProcessor
 from program_error import raise_program_error, ProgramErrorType
-from typing import Tuple
 
 #
 # LEXER
@@ -184,26 +183,27 @@ def p_end_program(t):
     end_program :
     '''
     quadruples.add_quad(Quad("ENDPROG", None, None, None))
+    quadruples.print()
 
 def p_statement(t):
     '''
     statement : assignment SEMICOLON
               | conditional
-              | write
-              | read
+              | write SEMICOLON
+              | read SEMICOLON
               | l_while
               | l_for
               | f_call SEMICOLON
-              | return
+              | return SEMICOLON
     '''
 
-def p_block(t):
+def p_blocks(t):
     '''
-    block : LBRACE b_push_context variables_decl block_1 RBRACE b_pop_context
+    block : b_push_context LBRACE variables_decl block_1 RBRACE b_pop_context
     block_1 : statement block_1
             |
-    m_block : LBRACE b_push_context variables_decl block_1 RBRACE mb_pop_context
-    l_block : LBRACE l_push_context block_1 RBRACE l_pop_context
+    m_block : b_push_context LBRACE variables_decl block_1 RBRACE mb_pop_context
+    l_block : l_push_context LBRACE block_1 RBRACE l_pop_context
     c_block : LBRACE block_1 RBRACE
     '''
     
@@ -308,7 +308,7 @@ def p_conditional_np3(t):
 
 def p_write(t):
     '''
-    write : PRINT LPAREN write_1 RPAREN SEMICOLON
+    write : PRINT LPAREN args RPAREN
     '''
     elements = t[3]
     if elements is None:
@@ -322,19 +322,9 @@ def p_write(t):
             address = elem.address
             quadruples.add_quad(Quad("PRINT", None, None, address))
 
-def p_write_1(t):
-    '''
-    write_1 : expression COMMA write_1
-            | expression
-    '''
-    if len(t) == 4:
-        t[0] = [t[1], *t[3]]
-    else:
-        t[0] = [t[1]]
-
 def p_read(t):
     '''
-    read : READ LPAREN var RPAREN SEMICOLON
+    read : READ LPAREN var RPAREN
     '''
     variable = t[3]
     if variable is None:
@@ -439,9 +429,13 @@ def p_l_for_np3(t):
 def p_f_call(t):
     '''
     f_call : ID LPAREN args RPAREN
+           | ID LPAREN RPAREN
     '''
     f_name = t[1]
-    f_args = t[3]
+    if len(t) == 5:
+        f_args = t[3]
+    else:
+        f_args = []
     # Check that function has been declared
     if not function_directory.check_function_exists(f_name):
         raise_program_error(ProgramErrorType.UNDECLARED_IDENTIFIER, t.lineno(1), f"The function named '{f_name}' was not declared")
@@ -468,22 +462,9 @@ def p_f_call(t):
         r_address = function.return_address
     t[0] = (function.return_type, r_address)
 
-def p_args(t):
-    '''
-    args : expression COMMA args
-         | expression
-         |
-    '''
-    if len(t) == 4:
-        t[0] = [t[1], *t[3]]
-    elif len(t) == 1:
-        t[0] = []
-    else:
-        t[0] = [t[1]]
-
 def p_return(t):
     '''
-    return : RETURN expression SEMICOLON
+    return : RETURN expression
     '''
     expr_type, expr_address = data_processor.process_data(t[2])
     # Check that return statement is inside a function
@@ -508,8 +489,8 @@ def p_return(t):
 
 def p_function(t):
     '''
-    function : function_t function_p function_np1 function_np2 block
-             | function_v function_p function_np1 function_np2 block
+    function : function_t function_p function_np1 block
+             | function_v function_p function_np1 block
     '''
     f_name = function_stack.pop()
     function = function_directory.get_function_from_directory(f_name)
@@ -522,15 +503,6 @@ def p_function(t):
         quadruples.add_quad(Quad("ENDFUNC", None, None, None))
     temporal_memory_manager.clear_memory_values()
     context_stack.pop()
-
-def p_function_t(t):
-    '''
-    function_t : type FUNCTION ID
-    function_v : VOID FUNCTION ID
-    '''
-    f_type = t[1]
-    f_id = t[3]
-    t[0] = (f_type, f_id)
 
 def p_function_p(t):
     '''
@@ -569,18 +541,14 @@ def p_function_np1(t):
         function.parameters.append(Variable(p_name, p_type, variable.address))
     # Save the function name in the function stack
     function_stack.append(f_name)
-    
-def p_function_np2(t):
-    '''
-    function_np2 :
-    '''
-    f_name = function_stack[-1]
     function_directory.get_function_from_directory(f_name).initial_quad_address = quadruples.instr_ptr
     
-def p_params_t(t):
+def p_id_t(t):
     '''
     params_t : type ID
     attributes_t : type COLON ID
+    function_t : type FUNCTION ID
+    function_v : VOID FUNCTION ID
     '''
     if len(t) == 3:
         f_type = t[1]
@@ -590,22 +558,36 @@ def p_params_t(t):
         f_id = t[3]
     t[0] = (f_type, f_id)
 
-def p_params(t):
+def p_repeated_elements(t):
     '''
+    args : expression COMMA args
+        | expression
     params : params_t COMMA params
            | params_t
+    variables_1 : ID COMMA variables_1
+            | ID
+    variables_2 : ID COMMA variables_2
+            | ID
+            | array COMMA variables_2
+            | array
+    class_attributes : attributes_t COMMA class_attributes
+                     | attributes_t
     '''
     if len(t) == 4:
         t[0] = [t[1], *t[3]]
     else:
         t[0] = [t[1]]
     
-def p_type(t):
+def p_types(t):
     '''
     type : INT
          | FLOAT
          | STRING
          | BOOL
+    const : int_const
+          | float_const
+          | string_const
+          | bool_const
     '''
     t[0] = t[1]
 
@@ -652,28 +634,6 @@ def p_variables(t):
             for value in class_detail.variable_table.variables.values():
                 nested_var = f"{var}.{value.name}"
                 context_stack.contexts[-1].add_variable_to_context(nested_var, value.type)
-
-def p_variables_1(t):
-    '''
-    variables_1 : ID COMMA variables_1
-                | ID
-    '''
-    if len(t) == 4:
-        t[0] = [t[1], *t[3]]
-    else:
-        t[0] = [t[1]]
-        
-def p_variables_2(t):
-    '''
-    variables_2 : ID COMMA variables_2
-                | ID
-                | array COMMA variables_2
-                | array   
-    '''
-    if len(t) == 4:
-        t[0] = [t[1], *t[3]]
-    else:
-        t[0] = [t[1]]
         
 def p_array(t):
     '''
@@ -683,8 +643,8 @@ def p_array(t):
 
 def p_array_dimension(t):
     '''
-    array_dimension : LBRACK expr RBRACK
-                    | LBRACK expr RBRACK LBRACK expr RBRACK
+    array_dimension : LBRACK expr RBRACK LBRACK expr RBRACK
+                    | LBRACK expr RBRACK
     '''
     if len(t) == 4:
         t[0] = [t[2]]
@@ -694,19 +654,19 @@ def p_array_dimension(t):
 def p_var(t):
     '''
     var : ID DOT ID
-        | ID array_dimension
+        | array
         | ID
     '''
-    if len(t) == 2:
-        v_name = t[1]
-        dim = None
-    elif len(t) == 4:
+    if len(t) == 4:
         c_name = t[1]
         v_name = f"{c_name}.{t[3]}"
         dim = None
-    else:
+    elif len(t) == 2 and type(t[1]) != tuple:
         v_name = t[1]
-        dim = t[2]
+        dim = None
+    else:
+        v_name = t[1][0]
+        dim = t[1][1]
     # Check that variable was declared
     if not context_stack.check_variable_exists(v_name):
         raise_program_error(ProgramErrorType.UNDECLARED_IDENTIFIER, t.lineno(1), f"The variable '{v_name}' has not been declared")
@@ -722,13 +682,19 @@ def p_var(t):
         addresses = []
         lower_lim = constant_memory_manager.find_address_or_add_value_to_memory(0)
         for i, (dim, param) in enumerate(zip(array_manager.dimensions, dim)):
-            addresses.append(param[1])
-            if param[0] != "int":
+            if type(param) == Variable:
+                p_type = param.type
+                p_address = param.address
+            else:
+                p_type = param[0]
+                p_address = param[1]
+            addresses.append(p_address)
+            if p_type != "int":
                 raise_program_error(ProgramErrorType.UNSUPPORTED_OPERATION, t.lineno(1), f"Cannot index '{v_name}' with a non-int expression")
             upper_lim = constant_memory_manager.find_address_or_add_value_to_memory(dim.upper_lim)
             m = constant_memory_manager.find_address_or_add_value_to_memory(dim.m)
             # Add VER quadruple to check if the index is within bounds
-            quadruples.add_quad(Quad("VER", param[1], lower_lim, upper_lim))
+            quadruples.add_quad(Quad("VER", p_address, lower_lim, upper_lim))
             # If it's the first dimension of the array
             if i > 0:
                 t1 = addresses.pop()
@@ -756,16 +722,6 @@ def p_class(t):
     class : CLASS ID class_np1 LBRACE class_attributes class_np2 RBRACE SEMICOLON
     '''
     context_stack.pop()
-
-def p_class_attributes(t):
-    '''
-    class_attributes : attributes_t COMMA class_attributes
-                     | attributes_t
-    '''
-    if len(t) == 4:
-        t[0] = [t[1], *t[3]]
-    else:
-        t[0] = [t[1]]
 
 def p_class_np1(t):
     '''
@@ -796,15 +752,6 @@ def p_class_np2(t):
                 raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(0), f"There is already an attribute named '{a_name}' in the directory")
             # Add attribute to the current context in the context stack
             context_stack.contexts[-1].add_variable_to_context(a_name, a_type)
-
-def p_const(t):
-    '''
-    const : int_const
-          | float_const
-          | string_const
-          | bool_const
-    '''
-    t[0] = t[1]
 
 def p_int_const(t):
     '''
@@ -859,17 +806,17 @@ def p_expr_unique(t):
     sub_expr_r : expr
     expr : term
     term : factor
-    factor : var
+    factor : LPAREN expr RPAREN
+           | var
            | const
            | f_call
-           | LPAREN expr RPAREN
     '''
     if len(t) == 2:
         t[0] = t[1]
     else:
         t[0] = t[2]
 
-def p_expr_operations(t):
+def p_expr_complex(t):
     '''
     expression : expression AND sub_expr_e
                | expression OR sub_expr_e

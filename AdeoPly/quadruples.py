@@ -25,9 +25,33 @@ class Quadruples:
     # Set quadruple value in an address
     def __setitem__(self, address: int, quad: Quad) -> None:
         self.quadruples[address] = quad
-        
+    
+    # Initialize iteration from first instruction
+    def __iter__(self):
+        self.instr_ptr = 0
+        return self
+
+    # Retrieve next quadruple during iteration
+    def __next__(self):
+        # Check that instruction pointer is valid
+        if self.instr_ptr < len(self.quadruples):
+            # Retrieve next quadruple
+            self.instr_ptr += 1
+            return self.quadruples[self.instr_ptr - 1]
+        else:
+            raise StopIteration
+    
     def __str__(self) -> str:
         result = "\n"
         for quad in self.quadruples:
             result += f"{str(quad)}\n"
         return result
+    
+    # Print quadruples with quadruple number
+    def print(self) -> None:
+        i = 0
+        print("\n--Quadruples--")
+        for quad in self.quadruples:
+            print(f"{i} {str(quad)}")
+            i += 1
+        print()

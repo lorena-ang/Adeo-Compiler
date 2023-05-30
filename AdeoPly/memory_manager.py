@@ -1,6 +1,6 @@
 from typing import TypeVar, Tuple, Generic, Optional
 
-TV = TypeVar("TV")
+TV = TypeVar("TV", int | None, float | None, str | None, bool | None, None)
 SIZE = 1000
 
 class TypeSpace(Generic[TV]):
@@ -9,14 +9,14 @@ class TypeSpace(Generic[TV]):
         if resource_size is None:
             self.values = []
         else:
-            self.values = [None] * resource_size
+            self.values = [None for _ in range(resource_size)]
 
 class MemoryManager:
-    ints_space: TypeSpace[int]
-    floats_space: TypeSpace[float]
-    strings_space: TypeSpace[str]
-    bools_space: TypeSpace[bool]
-    ptrs_space: TypeSpace[int]
+    ints_space: TypeSpace[int | None]
+    floats_space: TypeSpace[float | None]
+    strings_space: TypeSpace[str | None]
+    bools_space: TypeSpace[bool | None]
+    ptrs_space: TypeSpace[int | None]
 
     def __init__(self, base_address: int, resources: Optional[Tuple[int, int, int, int, int]] = None) -> None:
         if resources is None:
@@ -122,7 +122,6 @@ class MemoryManager:
     # Set the value for an address
     def __setitem__(self, address: int, value: int) -> None:
         typespace = self.get_typespace_from_address(address)
-        #print(address, typespace.initial_address)
         if typespace == self.bools_space:
             if value != None:
                 if not isinstance(value, bool):
