@@ -33,7 +33,7 @@ class VirtualMachine:
 
     # Store values from adeoobj file
     def process_section_data(self, section_data):
-        sections = ["--Global Memory--", "--Constants--", "--Functions--", "--Classes--", "--Quadruples--"]
+        sections = ["--Global Memory--", "--Constants--", "--Functions--", "--Quadruples--"]
         for section, data in section_data.items():
             # Global memory
             if section == sections[0]:
@@ -63,7 +63,7 @@ class VirtualMachine:
                     f_resources = ast.literal_eval(f[2])
                     self.function_directory.add_function_to_directory(f[0], int(f[5]), f_resources)
             # Quadruples
-            elif section == sections[4]:
+            elif section == sections[3]:
                 for elem in data:
                     q = elem[1:-1].split(',')
                     operator = q[0]
@@ -85,7 +85,7 @@ class VirtualMachine:
     def check_variable_initialized(self, memory: list[Tuple[int, int | float | str | bool]]) -> None:
         for v_address, v_value in memory:
             if v_value is None:
-                raise Exception("The constant at {v_address} was not initialized.")
+                raise Exception(f"The constant at '{v_address}' was not initialized.")
     
     # Store function memory and move the instruction pointer
     def apply_gosub(self, memory: MemoryManager, address: int | None) -> None:

@@ -35,6 +35,13 @@ class VariableTable:
                 return variable
         raise ValueError(f"The variable with the name '{name}' does not exist.")
 
+    def get_variable_addresses_from_substring(self, substring: str):
+        addresses = []
+        for variable in self.variables.values():
+            if substring in variable.name:
+                addresses.append(variable.address)
+        return addresses
+
     # Check if a variable exists from its name
     def check_variable_exists(self, name: str) -> bool:
         return name in self.variables

@@ -55,9 +55,12 @@ class SemanticCube:
     def get_result_type(self, left: str, operation: str, right: str) -> str:
         try:
             result = self.semantic_cube[self.change_to_number(left)][operation][self.change_to_number(right)]
+            return self.change_to_string(result)
         except KeyError:
-            return "TypeMismatch"
-        return self.change_to_string(result)
+            if left == right:
+                return left
+            else:
+                return "TypeMismatch"
 
     # Check if an operation is valid
     def check_operation(self, left: str, operation: str, right: str) -> bool:

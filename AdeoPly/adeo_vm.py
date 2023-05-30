@@ -10,7 +10,7 @@ if __name__ == '__main__':
                     virtual_machine = VirtualMachine()
                     lines = file.readlines()
 
-                    sections = ["--Global Memory--", "--Constants--", "--Functions--", "--Classes--", "--Quadruples--"]
+                    sections = ["--Global Memory--", "--Constants--", "--Functions--", "--Quadruples--"]
                     section_data = {}
 
                     current_section = None

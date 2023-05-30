@@ -4,24 +4,19 @@ Class Perro
 	string: color
 };
 
-Class Gato
-{
-	int: edad,
-	string: color
-};
-
 main()
 {
     var int: i1, i2, i3;
     var string: s1;
-    var Perro: perro1, perro2;
-    var Perro: gato1, gato2;
+    var Perro: perro1, perro2, perro3;
 
     i1 = 1;
 	i2 = 2;
 	i3 = 3;
 
     perro1.color = "rojo";
+    perro1.edad = 10;
+    perro2 = perro3 = perro1;
 
     if (i1 == i2)
     {
@@ -42,5 +37,5 @@ main()
     }
 
     i3 = i1 + i2;
-    print(i1, "\n", i2, "\n", i3, "\n", perro1.color, "\n");
+    print(i1, "\n", i2, "\n", i3, "\n");
 }

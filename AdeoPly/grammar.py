@@ -793,11 +793,25 @@ def p_assignment(t):
     # Determine the result type based on the left and right types
     operation_type = SemanticCube().get_result_type(left_type, t[2], right_type)
     if operation_type == "TypeMismatch":
-        raise_program_error(ProgramErrorType.TYPE_MISMATCH, t.lineno(1), "Operand does not match data type")
-    # Make sure the element to assign the value to is a variable that exists in the context
-    if left_name is not None and context_stack.check_variable_exists(left_name):
-        quadruples.add_quad(Quad("=", right_address, None, left_address))
-        t[0] = (operation_type, left_address)
+            raise_program_error(ProgramErrorType.TYPE_MISMATCH, t.lineno(1), "Operand does not match data type")
+    # If it's an object being assigned to another object
+    if not data_processor.check_type_simple(left_type) or not data_processor.check_type_simple(right_type):
+        right_name = t[3].name
+        # Make sure that both objects exist in the context
+        if left_name is not None and right_name is not None and context_stack.check_variable_exists(left_name) and context_stack.check_variable_exists(right_name):
+            variable_table = context_stack.contexts[-1].variable_table
+            left_addresses = variable_table.get_variable_addresses_from_substring(f"{left_name}.")
+            right_addresses = variable_table.get_variable_addresses_from_substring(f"{right_name}.")
+            # Generate assignment quadruples for each attribute
+            for left_address, right_address in zip(left_addresses, right_addresses):
+                quadruples.add_quad(Quad("=", right_address, None, left_address))
+            t[0] = (context_stack.contexts[-1].variable_table.get_variable_from_name(left_name))
+    # If it's an expression being assigned to a variable
+    else:
+        # Make sure the element to assign the value to is a variable that exists in the context
+        if left_name is not None and context_stack.check_variable_exists(left_name):
+            quadruples.add_quad(Quad("=", right_address, None, left_address))
+            t[0] = (operation_type, left_address)
 
 def p_expr_unique(t):
     '''
@@ -854,8 +868,6 @@ def get_data_to_compiler():
     d_temp += str(constant_memory_manager)
     data.append(d_temp)
     d_temp = "\n--Functions--" + str(function_directory)
-    data.append(d_temp)
-    d_temp = "\n--Classes--" + str(class_directory)
     data.append(d_temp)
     d_temp = "\n--Quadruples--" + str(quadruples)
     data.append(d_temp)
