@@ -4,7 +4,6 @@
 # Adeo grammar file for use with PLY library
 # -----------------------------------------------------------------------------
 
-import sys
 from variable_table import Variable
 from semantic_cube import SemanticCube
 from memory_manager import MemoryManager
@@ -126,23 +125,20 @@ global_memory_manager = MemoryManager(0)
 constant_memory_manager = MemoryManager(5000)
 temporal_memory_manager = MemoryManager(10000)
 
-context_stack = Stack()
-context_stack.push(Context("Global", global_memory_manager))
-
-quadruples = Quadruples()
-quadruples.add_quad(Quad("ERA", None, None, None))
-quadruples.add_quad(Quad("GOSUB", None, None, None))
-main_resources: str = ""
-main_initial_quad: int = 0
-
-# Class management
-class_directory = ClassDirectory()
-
 # Function management
 function_directory = FunctionDirectory()
 function_stack: list[str] = []
 
-# Jump and counter stacks
+# Context management
+context_stack = Stack()
+
+# Quadruples
+quadruples = Quadruples()
+
+# Class directory
+class_directory = ClassDirectory()
+
+# Jump and counter stacks for conditionals
 jumps: list[int] = []
 end_count: list[int] = []
 end_jumps: list[int] = []
@@ -152,9 +148,19 @@ data_processor = DataProcessor()
 
 def p_program(t):
     '''
-    program : class_decl variables_decl function_decl main m_block end_program
+    program : begin_program class_decl variables_decl function_decl main m_block end_program
     '''
     t[0] = "END"
+    
+def p_begin_program(t):
+    '''
+    begin_program :
+    '''
+    # Add quadruples for main function
+    quadruples.add_quad(Quad("ERA", None, None, None))
+    quadruples.add_quad(Quad("GOSUB", None, None, None))
+    # Create global context
+    context_stack.push(Context("Global", global_memory_manager))
 
 def p_program_decl(t):
     '''
@@ -172,7 +178,7 @@ def p_main(t):
     '''
     # Add as a function to the function directory
     function_name = "main"
-    address = global_memory_manager.find_address_or_add_value_to_memory(function_name)
+    address = global_memory_manager.find_memory_address(function_name)
     function_directory.add_function_to_directory(function_name, "void", None, address, context_stack.contexts[-1])
     function = function_directory.get_function_from_directory(function_name)
     function.initial_quad_address = quadruples.instr_ptr
@@ -225,7 +231,7 @@ def p_mb_pop_context(t):
     '''
     # Add context information for main function in function directory
     function_name = "main"
-    address = global_memory_manager.find_address_or_add_value_to_memory(function_name)
+    address = global_memory_manager.find_memory_address(function_name)
     quadruples[0] = Quad("ERA", None, None, address)
     function = function_directory.get_function_from_directory(function_name)
     function.resources = context_stack.contexts[-1].context_memory_manager.get_resources()
@@ -244,7 +250,7 @@ def p_l_pop_context(t):
     '''
     context_stack.pop()
     for _ in range(end_count.pop()):
-        address = constant_memory_manager.find_address_or_add_value_to_memory(quadruples.instr_ptr)
+        address = constant_memory_manager.find_memory_address(quadruples.instr_ptr)
         quadruples[end_jumps.pop()] = Quad("GOTO", None, None, address)
 
 def p_conditional(t):
@@ -254,7 +260,7 @@ def p_conditional(t):
     last_jump = jumps.pop()
     # Modify the quadruple associated with the last jump to point to the current instruction pointer
     quad = quadruples[last_jump]
-    address = constant_memory_manager.find_address_or_add_value_to_memory(quadruples.instr_ptr)
+    address = constant_memory_manager.find_memory_address(quadruples.instr_ptr)
     quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, address)
 
 def p_conditional_1(t):
@@ -290,7 +296,7 @@ def p_conditional_np2(t):
     # Update the value of the previous GOTOF to point to the current instruction pointer
     last_jump = jumps.pop()
     quad = quadruples[last_jump]
-    address = constant_memory_manager.find_address_or_add_value_to_memory(quadruples.instr_ptr)
+    address = constant_memory_manager.find_memory_address(quadruples.instr_ptr)
     quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, address)
 
 def p_conditional_np3(t):
@@ -303,7 +309,7 @@ def p_conditional_np3(t):
     last_jump = jumps.pop()
     jumps.append(quadruples.instr_ptr - 1)
     quad = quadruples[last_jump]
-    address = constant_memory_manager.find_address_or_add_value_to_memory(quadruples.instr_ptr)
+    address = constant_memory_manager.find_memory_address(quadruples.instr_ptr)
     quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, address)
 
 def p_write(t):
@@ -339,11 +345,11 @@ def p_l_while(t):
     last_jump = jumps.pop()
     second_last_jump = jumps.pop()
     # Add GOTO to return to the beginning of the loop
-    address = constant_memory_manager.find_address_or_add_value_to_memory(second_last_jump)
+    address = constant_memory_manager.find_memory_address(second_last_jump)
     quadruples.add_quad(Quad("GOTO", None, None, address))
     quad = quadruples[last_jump]
     # Update GOTO at the end of the loop to point to the current instruction
-    address = constant_memory_manager.find_address_or_add_value_to_memory(quadruples.instr_ptr)
+    address = constant_memory_manager.find_memory_address(quadruples.instr_ptr)
     quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, address)
 
 def p_l_while_np1(t):
@@ -361,7 +367,7 @@ def p_l_for(t):
     first_jump = jumps.pop()
     # Look for constant 1 or save it
     value = 1
-    one_address = constant_memory_manager.find_address_or_add_value_to_memory(value)
+    one_address = constant_memory_manager.find_memory_address(value)
     # Add one to the loop variable
     left_type, left_address = data_processor.process_data(t[2])
     operation_type = SemanticCube().get_result_type(left_type, "+", "int")
@@ -371,10 +377,10 @@ def p_l_for(t):
     quadruples.add_quad(Quad("+", left_address, one_address, address))
     quadruples.add_quad(Quad("=", address, one_address, left_address))
     # Update quadruples
-    address = constant_memory_manager.find_address_or_add_value_to_memory(first_jump)
+    address = constant_memory_manager.find_memory_address(first_jump)
     quadruples.add_quad(Quad("GOTO", None, None, address))
     quad = quadruples[last_jump]
-    address = constant_memory_manager.find_address_or_add_value_to_memory(quadruples.instr_ptr)
+    address = constant_memory_manager.find_memory_address(quadruples.instr_ptr)
     quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, address)
 
 def p_l_for_np1(t):
@@ -450,7 +456,7 @@ def p_f_call(t):
         p = param
         a_type, a_address = data_processor.process_data(arg)
         # Check that parameter and argument match types
-        if p.type != a_type:
+        if p.type != a_type and not (p.type == "float" and a_type == "int"):
             raise_program_error(ProgramErrorType.TYPE_MISMATCH, t.lineno(1), f"One or more call arguments in function '{f_name}' do not match the parameter types")
         quadruples.add_quad(Quad("PARAM", a_address, None, p.address))
     quadruples.add_quad(Quad("GOSUB", None, None, function.address))
@@ -529,7 +535,7 @@ def p_function_np1(t):
         return_address = global_memory_manager.reserve_space(f_type)
     # Add function to memory, function directory, and the context stack
     f_context = Context("Function", temporal_memory_manager)
-    f_address = global_memory_manager.add_value_to_memory(f_name)
+    f_address = global_memory_manager.find_memory_address(f_name)
     function = function_directory.add_function_to_directory(f_name, f_type, return_address, f_address, f_context)
     context_stack.push(f_context)
     # Update function parameters
@@ -680,7 +686,7 @@ def p_var(t):
         if len(dim) != len(array_manager.dimensions):
             raise_program_error(ProgramErrorType.ARRAY_INDEX_OUT_OF_BOUNDS, t.lineno(1), f"Wrong indexing when trying to access '{v_name}'")
         addresses = []
-        lower_lim = constant_memory_manager.find_address_or_add_value_to_memory(0)
+        lower_lim = constant_memory_manager.find_memory_address(0)
         for i, (dim, param) in enumerate(zip(array_manager.dimensions, dim)):
             if type(param) == Variable:
                 p_type = param.type
@@ -691,8 +697,8 @@ def p_var(t):
             addresses.append(p_address)
             if p_type != "int":
                 raise_program_error(ProgramErrorType.UNSUPPORTED_OPERATION, t.lineno(1), f"Cannot index '{v_name}' with a non-int expression")
-            upper_lim = constant_memory_manager.find_address_or_add_value_to_memory(dim.upper_lim)
-            m = constant_memory_manager.find_address_or_add_value_to_memory(dim.m)
+            upper_lim = constant_memory_manager.find_memory_address(dim.upper_lim)
+            m = constant_memory_manager.find_memory_address(dim.m)
             # Add VER quadruple to check if the index is within bounds
             quadruples.add_quad(Quad("VER", p_address, lower_lim, upper_lim))
             # If it's the first dimension of the array
@@ -709,7 +715,7 @@ def p_var(t):
                 quadruples.add_quad(Quad("*", addresses.pop(), m, t1))
                 addresses.append(t1)
         # Add the address of index value and base address, and store the result in t1
-        base_address = constant_memory_manager.find_address_or_add_value_to_memory(variable.address)
+        base_address = constant_memory_manager.find_memory_address(variable.address)
         t1 = temporal_memory_manager.reserve_space("int")
         quadruples.add_quad(Quad("+", addresses.pop(), base_address, t1))
         # Create a pointer quad to store t1 in t2
@@ -757,21 +763,21 @@ def p_int_const(t):
     '''
     int_const : INT_CONST
     '''
-    address = constant_memory_manager.find_address_or_add_value_to_memory(int(t[1]))
+    address = constant_memory_manager.find_memory_address(int(t[1]))
     t[0] = ("int", address)
 
 def p_float_const(t):
     '''
     float_const : FLOAT_CONST
     '''
-    address = constant_memory_manager.find_address_or_add_value_to_memory(float(t[1]))
+    address = constant_memory_manager.find_memory_address(float(t[1]))
     t[0] = ("float", address)
 
 def p_string_const(t):
     '''
     string_const : STRING_CONST
     '''
-    address = constant_memory_manager.find_address_or_add_value_to_memory(str(t[1]))
+    address = constant_memory_manager.find_memory_address(str(t[1]))
     t[0] = ("string", address)
 
 def p_bool_const(t):
@@ -779,7 +785,7 @@ def p_bool_const(t):
     bool_const : TRUE
                | FALSE
     '''
-    address = constant_memory_manager.find_address_or_add_value_to_memory(str(t[1]))
+    address = constant_memory_manager.find_memory_address(str(t[1]))
     t[0] = ("bool", address)
     
 def p_assignment(t):

@@ -1,11 +1,9 @@
 --Global Memory--
-(2,0,2,0,0)
 0-None
 1-None
 2000-sum
 2001-main
 --Constants--
-(5,0,2,0,0)
 5000-0
 5001-10
 5002-1
@@ -14,8 +12,8 @@
 7000-"\n"
 7001-"final: "
 --Functions--
-sum,int,(3,0,0,1,0),[int],2000,2,0
-main,void,(2,0,0,0,0),[],2001,14,None
+sum,int,(3,0,0,1,0),2
+main,void,(2,0,0,0,0),14
 --Quadruples--
 (ERA,None,None,2001)
 (GOSUB,None,None,2001)

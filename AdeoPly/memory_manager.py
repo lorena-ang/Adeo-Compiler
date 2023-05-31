@@ -44,19 +44,6 @@ class MemoryManager:
             return self.bools_space
         else:
             return self.ptrs_space
-
-    # From a memory index you will get the type
-    def get_type_from_address(self, address: int) -> str:
-        if address < self.floats_space.initial_address:
-            return "int"
-        elif address < self.strings_space.initial_address:
-            return "float"
-        elif address < self.bools_space.initial_address:
-            return "string"
-        elif address < self.ptrs_space.initial_address:
-            return "bool"
-        else:
-            return "ptr"
         
     # From the type of a value you will get the type space with initial address and all variables stored
     def get_typespace_from_type(self, type: str) -> TypeSpace:
@@ -72,8 +59,8 @@ class MemoryManager:
             return self.ptrs_space
         else:
             raise TypeError("Type doesn't exist.")
-    
-    # From a value you will get the type space with initial address and all variables stored
+        
+     # From a value you will get the type space with initial address and all variables stored
     def get_typespace_from_value(self, value: int | float | str | bool) -> TypeSpace:
         if type(value) == bool or value in ("true", "false"):
             return self.bools_space
@@ -85,6 +72,19 @@ class MemoryManager:
             return self.strings_space
         else:
             raise TypeError("Value doesn't exist.")
+        
+    # From a memory index you will get the type
+    def get_type_from_address(self, address: int) -> str:
+        if address < self.floats_space.initial_address:
+            return "int"
+        elif address < self.strings_space.initial_address:
+            return "float"
+        elif address < self.bools_space.initial_address:
+            return "string"
+        elif address < self.ptrs_space.initial_address:
+            return "bool"
+        else:
+            return "ptr"
     
     # Get the number of resources per type
     def get_resources(self) -> Tuple[int, int, int, int, int]:
@@ -97,13 +97,8 @@ class MemoryManager:
         typespace.values.append(value)
         return typespace.initial_address + len(typespace.values) - 1
 
-    # Adds a new value depending on the type
-    def add_value_to_memory(self, value: int | float | str | bool) -> int:
-        typespace = self.get_typespace_from_value(value)
-        return self.add_value_to_typespace(typespace, value)
-
     # Find memory address from a value or add it to memory
-    def find_address_or_add_value_to_memory(self, value: int | float | str | bool) -> int:
+    def find_memory_address(self, value: int | float | str | bool) -> int:
         typespace = self.get_typespace_from_value(value)
         try:
             return typespace.values.index(value) + typespace.initial_address
@@ -138,13 +133,14 @@ class MemoryManager:
         elif typespace == self.ptrs_space:
             if value != None:
                 self[typespace.values[address - typespace.initial_address]] = value
+                return
         typespace.values[address - typespace.initial_address] = value
         
     # Add a new pointer to the ptr typespace
     def add_ptr(self, address: int, value: int) -> None:
         typespace = self.ptrs_space
         typespace.values[address - typespace.initial_address] = value
-
+        
     # Reserves space for a variable that hasn't been assigned yet (only declared)
     def reserve_space(self, data_type: str, size: int = 1) -> int:
         typespace = self.get_typespace_from_type(data_type)
@@ -170,6 +166,8 @@ class MemoryManager:
             output += f"\n{addr + self.strings_space.initial_address}-{val}"
         for addr, val in enumerate(self.bools_space.values):
             output += f"\n{addr + self.bools_space.initial_address}-{val}"
+        for addr, val in enumerate(self.ptrs_space.values):
+            output += f"\n{addr + self.ptrs_space.initial_address}-{val}"
         return output
     
     # DELETE: Print for debugging
@@ -187,3 +185,6 @@ class MemoryManager:
         print("bools")
         for addr, val in enumerate(self.bools_space.values):
             print(f"{addr + self.bools_space.initial_address}\t{val}")
+        print("ptrs")
+        for addr, val in enumerate(self.ptrs_space.values):
+            print(f"{addr + self.ptrs_space.initial_address}\t{val}")
