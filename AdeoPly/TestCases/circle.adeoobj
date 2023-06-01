@@ -1,0 +1,137 @@
+--Global Memory--
+1000-None
+1001-None
+1002-None
+1003-None
+1004-None
+2000-None
+2001-calculateArea
+2002-calculateCircumference
+2003-None
+2004-compareAreas
+2005-printBiggerArea
+2006-main
+--Constants--
+5000-2
+5001-16
+5002-21
+5003-23
+5004-33
+5005-37
+5006-38
+6000-3.14
+7000-"area1"
+7001-"area2"
+7002-"area3"
+7003-"\nCircle 1 has a larger area.\n"
+7004-"\nCircle 2 has a larger area.\n"
+7005-"\nCircle 1 and Circle 2 have the same area.\n"
+7006-"Enter the color of Circle 1: "
+7007-"Enter the radius of Circle 1: "
+7008-"Enter the color of Circle 2: "
+7009-"Enter the radius of Circle 2: "
+7010-"\nCircle 1\n"
+7011-"Color: "
+7012-"\n"
+7013-"Radius: "
+7014-"Area: "
+7015-"\nCircle 2\n"
+--Functions--
+calculateArea,float,(0,4,0,0,0),2
+calculateCircumference,float,(0,3,0,0,0),7
+compareAreas,string,(0,2,0,2,0),11
+printBiggerArea,void,(0,2,2,2,0),23
+main,void,(0,13,3,0,0),39
+--Quadruples--
+(ERA,None,None,2006)
+(GOSUB,None,None,2006)
+(*,11000,11000,11002)
+(=,11002,None,11001)
+(*,6000,11001,11003)
+(=,11003,None,1003)
+(ENDFUNC,None,None,None)
+(*,5000,6000,11001)
+(*,11001,11000,11002)
+(=,11002,None,1004)
+(ENDFUNC,None,None,None)
+(>,11000,11001,13000)
+(GOTOF,13000,None,5001)
+(=,7000,None,2003)
+(ENDFUNC,None,None,None)
+(GOTO,None,None,5003)
+(>,11001,11000,13001)
+(GOTOF,13001,None,5002)
+(=,7001,None,2003)
+(ENDFUNC,None,None,None)
+(GOTO,None,None,5003)
+(=,7002,None,2003)
+(ENDFUNC,None,None,None)
+(ERA,None,None,2004)
+(PARAM,11000,None,11000)
+(PARAM,11001,None,11001)
+(GOSUB,None,None,2004)
+(=,2003,None,12001)
+(=,12001,None,12000)
+(==,12000,7000,13000)
+(GOTOF,13000,None,5004)
+(PRINT,None,None,7003)
+(GOTO,None,None,5006)
+(==,12000,7001,13001)
+(GOTOF,13001,None,5005)
+(PRINT,None,None,7004)
+(GOTO,None,None,5006)
+(PRINT,None,None,7005)
+(ENDFUNC,None,None,None)
+(PRINT,None,None,7006)
+(READ,None,None,12000)
+(PRINT,None,None,7007)
+(READ,None,None,11000)
+(PRINT,None,None,7008)
+(READ,None,None,12001)
+(PRINT,None,None,7009)
+(READ,None,None,11003)
+(ERA,None,None,2001)
+(PARAM,11000,None,11000)
+(GOSUB,None,None,2001)
+(=,1003,None,11009)
+(=,11009,None,11001)
+(ERA,None,None,2002)
+(PARAM,11000,None,11000)
+(GOSUB,None,None,2002)
+(=,1004,None,11010)
+(=,11010,None,11002)
+(ERA,None,None,2001)
+(PARAM,11003,None,11000)
+(GOSUB,None,None,2001)
+(=,1003,None,11011)
+(=,11011,None,11004)
+(ERA,None,None,2002)
+(PARAM,11003,None,11000)
+(GOSUB,None,None,2002)
+(=,1004,None,11012)
+(=,11012,None,11005)
+(PRINT,None,None,7010)
+(PRINT,None,None,7011)
+(PRINT,None,None,12000)
+(PRINT,None,None,7012)
+(PRINT,None,None,7013)
+(PRINT,None,None,11000)
+(PRINT,None,None,7012)
+(PRINT,None,None,7014)
+(PRINT,None,None,11001)
+(PRINT,None,None,7012)
+(PRINT,None,None,7015)
+(PRINT,None,None,7011)
+(PRINT,None,None,12001)
+(PRINT,None,None,7012)
+(PRINT,None,None,7013)
+(PRINT,None,None,11003)
+(PRINT,None,None,7012)
+(PRINT,None,None,7014)
+(PRINT,None,None,11004)
+(PRINT,None,None,7012)
+(ERA,None,None,2005)
+(PARAM,11001,None,11000)
+(PARAM,11004,None,11001)
+(GOSUB,None,None,2005)
+(ENDPROG,None,None,None)

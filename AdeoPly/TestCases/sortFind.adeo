@@ -1,0 +1,108 @@
+var int: arr[10];
+var int: size;
+
+void function bubbleSortAscending() 
+{
+    var int: i, j, temp;
+
+    for i = 0 to size - 1 do
+    {
+        for j = 0 to size - i - 1 do
+        {
+            if (arr[j] > arr[j + 1])
+            {
+                temp = arr[j];
+                arr[j] = arr[j + 1];
+                arr[j + 1] = temp;
+            }
+        }
+    }
+}
+
+void function bubbleSortDescending() 
+{
+    var int: i, j, temp;
+
+    for i = 0 to size - 1 do
+    {
+        for j = 0 to size - i - 1 do
+        {
+            if (arr[j] < arr[j + 1])
+            {
+                temp = arr[j];
+                arr[j] = arr[j + 1];
+                arr[j + 1] = temp;
+            }
+        }
+    }
+}
+
+int function findElement(int element)
+{
+    var int: i;
+
+    for i = 0 to size do
+    {
+        if (arr[i] == element)
+        {
+            return i + 1;
+        }
+    }
+    return -1;
+}
+
+void function displayArray()
+{
+    var int: i;
+
+    for i = 0 to size do
+    {
+        print(arr[i], " ");
+    }
+    print("\n");
+}
+
+void function displayElementFound(int element, int pos)
+{   
+    if (pos != -1)
+    {
+        print(element, " is element number ", pos, "\n");
+    }
+    else
+    {
+        print(element, " is not present in the array\n");
+    }
+}
+
+main()
+{    
+    var int: element, pos;
+    
+    arr[0] = 26;
+    arr[1] = 104;
+    arr[2] = 51;
+    arr[3] = -67;
+    arr[4] = -2;
+    arr[5] = 148;
+    arr[6] = 33;
+    arr[7] = -48;
+    arr[8] = 0;
+    arr[9] = 9;
+
+    size = 10;
+    element = 104;
+
+    print("Original array:\n");
+    displayArray();
+    displayElementFound(1, findElement(1));
+
+    print("\nBubble sort ascending:\n");
+    bubbleSortAscending();
+    displayArray();
+    displayElementFound(element, findElement(element));
+
+    print("\nBubble sort descending:\n");
+    bubbleSortDescending();
+    displayArray();
+    displayElementFound(element, findElement(element));
+}

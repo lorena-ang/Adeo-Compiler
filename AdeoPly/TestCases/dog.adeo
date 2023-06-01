@@ -1,0 +1,44 @@
+Class Dog 
+{
+    string: name,
+    int: age,
+    float: weight
+};
+
+var Dog: dog3;
+
+void function displayDogDetails(int num, string name, int age, float weight)
+{
+    print("\nDog ", num, "\n");
+    print("Name: ", name, "\n");
+    print("Age: ", age, "\n");
+    print("Weight: ", weight, "\n");
+}
+
+int function calculateHumanAge(int age)
+{
+    return age * 7;
+}
+
+main() 
+{
+    var Dog: dog1, dog2;
+
+    dog1.name = "Spot";
+    dog1.age = 5;
+    dog1.weight = 8.5;
+
+    dog2.name = "Minnie";
+    dog2.age = 3;
+    dog2.weight = 4.1;
+
+    displayDogDetails(1, dog1.name, dog1.age, dog1.weight);
+    print("Dog age in human years: ", calculateHumanAge(dog1.age), "\n");
+
+    displayDogDetails(2, dog2.name, dog2.age, dog2.weight);
+    print("Dog age in human years: ", calculateHumanAge(dog2.age), "\n");
+
+    dog3 = dog1;
+    dog3.name = "Max";
+    displayDogDetails(3, dog3.name, dog3.age, dog3.weight);
+}

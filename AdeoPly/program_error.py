@@ -3,11 +3,11 @@ class ProgramError(Exception):
         self.error_type = error_type
         self.line_num = line_num
         self.description = description
-        error_message = f"{error_type} at line {line_num}: {description}."
-        super().__init__(error_message)
 
 class ProgramErrorType:
+    ARITHMETIC_EXCEPTION = "ARITHMETIC_EXCEPTION"
     ARRAY_INDEX_OUT_OF_BOUNDS = "ARRAY_INDEX_OUT_OF_BOUNDS"
+    INPUT_TYPE_MISMATCH = "INPUT_TYPE_MISMATCH"
     MISSING_REQUIRED_ARGUMENT = "MISSING_REQUIRED_ARGUMENT"
     REDECLARATION_ERROR = "REDECLARATION_ERROR"
     RETURN_STATEMENT_MISSING = "RETURN_STATEMENT_MISSING"
@@ -18,5 +18,13 @@ class ProgramErrorType:
     UNSUPPORTED_OPERATION = "UNSUPPORTED_OPERATION"
     VARIABLE_NOT_INITIALIZED = "VARIABLE_NOT_INITIALIZED"
 
-def raise_program_error(error_type: str, line_num: int, description: str):
+def raise_program_error(error_type: str, line_num: int | None, description: str):
+    """
+    Raise a ProgramError with the specified error type, line number, and description.
+
+    Parameters:
+        error_type (str): The type of the program error.
+        line_num (int | None): The line number where the error occurred.
+        description (str): A description of the error.
+    """
     raise ProgramError(error_type, line_num, description)

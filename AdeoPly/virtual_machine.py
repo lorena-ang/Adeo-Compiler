@@ -1,25 +1,57 @@
-from memory_manager import MemoryManager
+import ast, codecs, re
+from data_helper import DataHelper
 from function_directory import FunctionDirectoryVM
-from quadruples import Quad, Quadruples
-from data_processor import DataProcessor
+from memory_manager import MemoryManager, SIZE
+from program_error import raise_program_error, ProgramErrorType
+from quadruples import Quadruples
 from typing import Tuple
-import re, ast, codecs
 
-data_processor = DataProcessor()
+START_CONSTANT_MEMORY = SIZE * 5
+START_FUNCTION_MEMORY = START_CONSTANT_MEMORY * 2
 
-class VirtualMachine:    
-    def __init__(self) -> None:
+class VirtualMachine:
+    """
+    The VirtualMachine class represents a virtual machine that executes quadruples.
+    Attributes:
+        global_memory_manager (MemoryManager): The memory manager for the global memory.
+        constant_memory_manager (MemoryManager): The memory manager for the constant memory.
+        function_memory_manager (MemoryManager): The memory manager for the function memory.
+        temporal_memory_manager (MemoryManager | None): The memory manager for the temporal memory, or None if not initialized.
+        function_directory (FunctionDirectoryVM): The function directory.
+        quadruples (Quadruples): The collection of quadruples.
+        function_memory_stack (list): A stack that stores the instruction pointer and function memory manager during function calls.
+        return_value (int | float | str | bool | None): The return value of a function.
+
+    Methods:
+        process_section_data(section_data: dict) -> None:
+            Process the sections of data and populate memory, function directory, and quadruples.
+        get_memory_manager_type(address: int | None) -> MemoryManager:
+            Get the memory manager type based on the address.
+        check_variable_initialized(memory: list[Tuple[int, int | float | str | bool]]) -> None:
+            Check if variables in the memory list have been initialized.
+        check_valid_ptr(curr_address: int, past_address: int, memory: MemoryManager) -> bool:
+            Check if the current address corresponds to a valid pointer.
+        start_execution() -> int:
+            Start executing the quadruples.
+    """
+
+    def __init__(self):
         self.global_memory_manager = MemoryManager(0)
-        self.constant_memory_manager = MemoryManager(5000)
-        self.function_memory_manager = MemoryManager(10000)
+        self.constant_memory_manager = MemoryManager(START_CONSTANT_MEMORY)
+        self.function_memory_manager = MemoryManager(START_FUNCTION_MEMORY)
+        self.temporal_memory_manager = None
         self.function_directory = FunctionDirectoryVM()
         self.quadruples = Quadruples()
         self.function_memory_stack = []
-        self.temporal_memory_manager = None
         self.return_value = None
 
-    # Store values from adeoobj file
     def process_section_data(self, section_data):
+        """
+        Process the sections of data and populate memory, function directory, and quadruples.
+
+         Parameters:
+            section_data (dict): A dictionary containing the section names as keys and their data as values.
+        """
         sections = ["--Global Memory--", "--Constants--", "--Functions--", "--Quadruples--"]
         for section, data in section_data.items():
             # Global memory
@@ -30,15 +62,15 @@ class VirtualMachine:
                     if v[1] == "None":
                         self.global_memory_manager.reserve_space(v_type)
                     else:
-                        v_val = data_processor.change_to_type(v_type, v[1])
-                        self.global_memory_manager.find_memory_address(v_val)
+                        v_value = DataHelper.change_to_type(v_type, v[1])
+                        self.global_memory_manager.find_memory_address(v_value)
             # Constant memory
             elif section == sections[1]:
                 for elem in data:
                     c = re.findall(r'(\d+).*?-(.*)', elem)[0]
                     c_type = self.constant_memory_manager.get_type_from_address(int(c[0]))
-                    c_val = data_processor.change_to_type(c_type, c[1])
-                    self.constant_memory_manager.find_memory_address(c_val)
+                    c_value = DataHelper.change_to_type(c_type, c[1])
+                    self.constant_memory_manager.find_memory_address(c_value)
             # Functions
             elif section == sections[2]:
                 for elem in data:
@@ -53,112 +85,148 @@ class VirtualMachine:
                     v1 = int(q[1]) if q[1] != 'None' else None
                     v2 = int(q[2]) if q[2] != 'None' else None
                     v3 = int(q[3]) if q[3] != 'None' else None
-                    self.quadruples.add_quad(Quad(operator, v1, v2, v3))
+                    self.quadruples.add_quad(operator, v1, v2, v3)
 
-    # Get the type of memory manager through the address number
     def get_memory_manager_type(self, address: int | None) -> MemoryManager:
-        if address is not None and address >= 10000:
+        """
+        Get the memory manager type based on the address.
+
+        Parameters:
+            address (int | None): The address number.
+
+        Returns:
+            MemoryManager: The memory manager corresponding to the address.
+        """
+        if address is not None and address >= START_FUNCTION_MEMORY:
             return self.function_memory_manager
-        elif address is not None and address < 10000 and address >= 5000:
+        elif address is not None and address < START_FUNCTION_MEMORY and address >= START_CONSTANT_MEMORY:
             return self.constant_memory_manager
         else:
             return self.global_memory_manager
-    
-    # Check the variables in the list have been initialized
+
     def check_variable_initialized(self, memory: list[Tuple[int, int | float | str | bool]]):
+        """
+        Check if variables in the memory list have been initialized.
+
+        Parameters:
+            memory (list[Tuple[int, int | float | str | bool]]): The list of memory addresses and values.
+        """
         for v_address, v_value in memory:
             if v_value is None:
-                raise Exception(f"The constant at '{v_address}' was not initialized.")
+                raise_program_error(ProgramErrorType.VARIABLE_NOT_INITIALIZED, None, f"The variable at address '{v_address}' was not initialized")
+                
+    def check_valid_ptr(self, curr_address: int, past_address: int, memory: MemoryManager) -> bool:
+        """
+        Check if the current address corresponds to a valid pointer.
+        
+        Parameters:
+            curr_address (int): The current quad address, which would change from the original if there a pointer there.
+            past_address (int): The original quad address, which will remain the same for the whole execution.
+        
+        Returns:
+            bool: True or False depending on if the current address is a valid pointer.
+        """
+        return curr_address is not None and memory.get_type_from_address(past_address) == "ptr"
 
-    # Start processing quadruples
     def start_execution(self) -> int:
+        """
+        Start executing the quadruples.
+
+        Returns:
+            int: The return value of the program.
+        """
         for quad in self.quadruples:
             left_address = quad.left_address
             right_address = quad.right_address
             return_address = quad.return_address
             # Get the type of memory manager for each address
-            m1 = self.get_memory_manager_type(left_address)
-            m2 = self.get_memory_manager_type(right_address)
-            m3 = self.get_memory_manager_type(return_address)
+            left_memory = self.get_memory_manager_type(left_address)
+            right_memory = self.get_memory_manager_type(right_address)
+            return_memory = self.get_memory_manager_type(return_address)
+            # Update address and memory if there is a pointer
+            if self.check_valid_ptr(left_address, quad.left_address, left_memory):
+                memory = self.get_memory_manager_type(left_memory[left_address])
+                left_address = left_memory[left_address]
+                left_memory = memory
+            if self.check_valid_ptr(right_address, quad.right_address, right_memory):
+                memory = self.get_memory_manager_type(right_memory[right_address])
+                right_address = right_memory[right_address]
+                right_memory = memory
+            if self.check_valid_ptr(return_address, quad.return_address, return_memory) and quad.operator != "PTR":
+                memory = self.get_memory_manager_type(return_memory[return_address])
+                return_address = return_memory[return_address]
+                return_memory = memory
 
-            if left_address is not None and m1.get_type_from_address(quad.left_address) == "ptr":
-                memory = self.get_memory_manager_type(m1[left_address])
-                left_address = m1[left_address]
-                m1 = memory
-            if right_address is not None and m2.get_type_from_address(quad.right_address) == "ptr":
-                memory = self.get_memory_manager_type(m2[right_address])
-                right_address = m2[right_address]
-                m2 = memory
-            if return_address is not None and m3.get_type_from_address(quad.return_address) == "ptr" and quad.operator != "PTR":
-                memory = self.get_memory_manager_type(m3[return_address])
-                return_address = m3[return_address]
-                m3 = memory
-
-            #print(quad.operator, left_address, right_address, return_address)
+            # Perform quad operations
             if quad.operator == "=":
-                self.check_variable_initialized([(left_address, m1[left_address])])
-                m3[return_address] = m1[left_address]
+                self.check_variable_initialized([(left_address, left_memory[left_address])])
+                return_memory[return_address] = left_memory[left_address]
                 # In case the value assignment is for a return
-                self.return_value = m1[left_address]
+                self.return_value = left_memory[left_address]
             elif quad.operator in ["+", "-", "*", "/"]:
-                self.check_variable_initialized([(left_address, m1[left_address]), (right_address, m2[right_address])])
+                self.check_variable_initialized([(left_address, left_memory[left_address]), (right_address, right_memory[right_address])])
                 if quad.operator == "+":
-                    m3[return_address] = m1[left_address] + m2[right_address]
+                    return_memory[return_address] = left_memory[left_address] + right_memory[right_address]
                 elif quad.operator == "-":
-                    m3[return_address] = m1[left_address] - m2[right_address]
+                    return_memory[return_address] = left_memory[left_address] - right_memory[right_address]
                 elif quad.operator == "*":
-                    m3[return_address] = m1[left_address] * m2[right_address]
+                    return_memory[return_address] = left_memory[left_address] * right_memory[right_address]
                 elif quad.operator == "/":
-                    m3[return_address] = m1[left_address] / m2[right_address]
+                    if right_memory[right_address] == 0:
+                        raise_program_error(ProgramErrorType.ARITHMETIC_EXCEPTION, None, "Cannot divide a number by zero")
+                    return_memory[return_address] = left_memory[left_address] / right_memory[right_address]
             elif quad.operator in [">", ">=", "<", "<=", "==", "!="]:
-                self.check_variable_initialized([(left_address, m1[left_address]), (right_address, m2[right_address])])
+                self.check_variable_initialized([(left_address, left_memory[left_address]), (right_address, right_memory[right_address])])
                 if quad.operator == ">":
-                    m3[return_address] = m1[left_address] > m2[right_address]
+                    return_memory[return_address] = left_memory[left_address] > right_memory[right_address]
                 elif quad.operator == ">=":
-                    m3[return_address] = m1[left_address] >= m2[right_address]
+                    return_memory[return_address] = left_memory[left_address] >= right_memory[right_address]
                 elif quad.operator == "<":
-                    m3[return_address] = m1[left_address] < m2[right_address]
+                    return_memory[return_address] = left_memory[left_address] < right_memory[right_address]
                 elif quad.operator == "<=":
-                    m3[return_address] = m1[left_address] <= m2[right_address]
+                    return_memory[return_address] = left_memory[left_address] <= right_memory[right_address]
                 elif quad.operator == "==":
-                    m3[return_address] = m1[left_address] == m2[right_address]
+                    return_memory[return_address] = left_memory[left_address] == right_memory[right_address]
                 elif quad.operator == "!=":
-                    m3[return_address] = m1[left_address] != m2[right_address]
+                    return_memory[return_address] = left_memory[left_address] != right_memory[right_address]
             elif quad.operator in ["||", "&&"]:
-                self.check_variable_initialized([(left_address, m1[left_address]), (right_address, m2[right_address])])
+                self.check_variable_initialized([(left_address, left_memory[left_address]), (right_address, right_memory[right_address])])
                 if quad.operator == "||":
-                    m3[return_address] = m1[left_address] or m2[right_address]
+                    return_memory[return_address] = left_memory[left_address] or right_memory[right_address]
                 elif quad.operator == "&&":
-                    m3[return_address] = m1[left_address] and m2[right_address]
+                    return_memory[return_address] = left_memory[left_address] and right_memory[right_address]
             elif quad.operator == "PRINT":
-                self.check_variable_initialized([(return_address, m3[return_address])])
-                value = codecs.decode(str(m3[return_address]), "unicode_escape")
+                self.check_variable_initialized([(return_address, return_memory[return_address])])
+                value = codecs.decode(str(return_memory[return_address]), "unicode_escape")
                 print(value, end="")
             elif quad.operator == "READ":
-                m3[return_address] = input()
+                try:
+                    return_memory[return_address] = input()
+                except ValueError:
+                    raise_program_error(ProgramErrorType.INPUT_TYPE_MISMATCH, None, f"The input cannot be stored in the variable because it is not of the same type")
             elif quad.operator == "GOTO":
-                self.check_variable_initialized([(return_address, m3[return_address])])
-                self.quadruples.instr_ptr = int(m3[return_address])
+                self.check_variable_initialized([(return_address, return_memory[return_address])])
+                self.quadruples.instr_ptr = int(return_memory[return_address])
             elif quad.operator == "GOTOF":
-                self.check_variable_initialized([(left_address, m1[left_address]), (return_address, m3[return_address])])
-                if m1[left_address] == False:
-                    self.quadruples.instr_ptr = int(m3[return_address])
+                self.check_variable_initialized([(left_address, left_memory[left_address]), (return_address, return_memory[return_address])])
+                if not left_memory[left_address]:
+                    self.quadruples.instr_ptr = int(return_memory[return_address])
             elif quad.operator == "VER":
-                self.check_variable_initialized([(left_address, m1[left_address]), (right_address, m2[right_address]), (return_address, m3[return_address])])
-                if m1[left_address] < m2[right_address] or m1[left_address] >= m3[return_address]:
-                    raise Exception("Array out of bounds")
+                self.check_variable_initialized([(left_address, left_memory[left_address]), (right_address, right_memory[right_address]), (return_address, return_memory[return_address])])
+                if left_memory[left_address] < right_memory[right_address] or left_memory[left_address] >= return_memory[return_address]:
+                    raise_program_error(ProgramErrorType.ARRAY_INDEX_OUT_OF_BOUNDS, None, f"The index '{left_memory[left_address]}' is outside of the valid range")
             elif quad.operator == "PTR":
-                self.check_variable_initialized([(left_address, m1[left_address])])
-                m3.add_ptr(return_address, m1[left_address])
+                self.check_variable_initialized([(left_address, left_memory[left_address])])
+                return_memory.add_ptr(return_address, left_memory[left_address])
             elif quad.operator == "ERA":
                 # Get resources from function directory and initialize temporal memory
                 f_name = self.global_memory_manager[return_address]
                 f_resources = self.function_directory.get_function_from_directory(f_name).resources
-                self.temporal_memory_manager = MemoryManager(10000, f_resources)
+                self.temporal_memory_manager = MemoryManager(START_FUNCTION_MEMORY, f_resources)
             elif quad.operator == "PARAM":
-                self.check_variable_initialized([(left_address, m1[left_address])])
+                self.check_variable_initialized([(left_address, left_memory[left_address])])
                 # Add parameters to temporal memory
-                self.temporal_memory_manager[return_address] = m1[left_address]
+                self.temporal_memory_manager[return_address] = left_memory[left_address]
             elif quad.operator == "GOSUB":
                 self.function_memory_stack.append((self.quadruples.instr_ptr, self.function_memory_manager))
                 self.function_memory_manager = self.temporal_memory_manager

@@ -1,0 +1,91 @@
+var int: i;
+
+void function iterative_fibonacci(int n)
+{
+    var int: prev, curr, next;
+
+    if (n > 0)
+    {
+        prev = 0;
+        curr = 1;
+
+        print(prev, " ", curr, " ");
+
+        for i = 2 to n do
+        {
+            next = prev + curr;
+            print(next, " ");
+            prev = curr;
+            curr = next;
+        }
+
+        print("\n");
+    }
+    else
+    {
+        print("Could not calculate iterative fibonacci for that number.\n");
+    }
+}
+
+int function recursive_fibonacci(int n)
+{
+    if (n <= 1)
+	{
+        return n;
+    }
+
+    return recursive_fibonacci(n - 1) + recursive_fibonacci(n - 2);
+}
+
+void function iterative_factorial(int n)
+{
+    var int: result;
+    
+    result = 1;
+    print(result, " ");
+
+    for i = 2 to n + 1 do
+    {
+        result = result * i;
+        print(result, " ");
+    }
+    
+    print("\n");
+}
+
+int function recursive_factorial(int n)
+{
+    if (n == 0)
+	{
+        return 1;
+    }
+
+    return n * recursive_factorial(n - 1);
+}
+
+main()
+{
+    var int: num;
+
+	print("Enter number to calculate fibonacci sequence for this amount: ");
+	read(num);
+
+    iterative_fibonacci(num);
+
+    for i = 0 to num do
+	{
+		print(recursive_fibonacci(i), " ");
+    }
+    print("\n");
+
+	print("Enter number to calculate factorial sequence for this amount: ");
+	read(num);
+
+	iterative_factorial(i);
+
+    for i = 1 to num + 1 do
+	{
+		print(recursive_factorial(i), " ");
+    }
+    print("\n");
+}

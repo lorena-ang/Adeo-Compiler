@@ -1,19 +1,13 @@
-# -----------------------------------------------------------------------------
-# grammar.py
-#
-# Adeo grammar file for use with PLY library
-# -----------------------------------------------------------------------------
-
-from variable_table import Variable
-from semantic_cube import SemanticCube
-from memory_manager import MemoryManager
-from quadruples import Quad, Quadruples
-from function_directory import FunctionDirectory
-from class_directory import ClassDirectory
-from stack import Context, Stack
 from array_manager import ArrayManager
-from data_processor import DataProcessor
-from program_error import raise_program_error, ProgramErrorType
+from class_directory import ClassDirectory
+from context_stack import Context, ContextStack
+from data_helper import DataHelper
+from function_directory import FunctionDirectory
+from memory_manager import MemoryManager
+from program_error import ProgramErrorType, raise_program_error
+from quadruples import Quad, Quadruples
+from semantic_cube import SemanticCube
+from variable_table import Variable
 
 #
 # LEXER
@@ -130,7 +124,7 @@ function_directory = FunctionDirectory()
 function_stack: list[str] = []
 
 # Context management
-context_stack = Stack()
+context_stack = ContextStack()
 
 # Quadruples
 quadruples = Quadruples()
@@ -143,8 +137,7 @@ jumps: list[int] = []
 end_count: list[int] = []
 end_jumps: list[int] = []
 
-# Helper class for data processing
-data_processor = DataProcessor()
+error_message = ""
 
 def p_program(t):
     '''
@@ -157,8 +150,8 @@ def p_begin_program(t):
     begin_program :
     '''
     # Add quadruples for main function
-    quadruples.add_quad(Quad("ERA", None, None, None))
-    quadruples.add_quad(Quad("GOSUB", None, None, None))
+    quadruples.add_quad("ERA", None, None, None)
+    quadruples.add_quad("GOSUB", None, None, None)
     # Create global context
     context_stack.push(Context("Global", global_memory_manager))
 
@@ -177,18 +170,20 @@ def p_main(t):
     main : MAIN LPAREN RPAREN
     '''
     # Add as a function to the function directory
-    function_name = "main"
-    address = global_memory_manager.find_memory_address(function_name)
-    function_directory.add_function_to_directory(function_name, "void", None, address, context_stack.contexts[-1])
-    function = function_directory.get_function_from_directory(function_name)
+    f_name = "main"
+    f_address = global_memory_manager.find_memory_address(f_name)
+    function_directory.add_function_to_directory(f_name, f_address, "void", None)
+    function = function_directory.get_function_from_directory(f_name)
     function.initial_quad_address = quadruples.instr_ptr
-    quadruples[1] = Quad("GOSUB", None, None, address)
+    quadruples[1] = Quad("GOSUB", None, None, f_address)
 
 def p_end_program(t):
     '''
     end_program :
     '''
-    quadruples.add_quad(Quad("ENDPROG", None, None, None))
+    quadruples.add_quad("ENDPROG", None, None, None)
+    #global_memory_manager.print("Global")
+    #constant_memory_manager.print("Constant")
     quadruples.print()
 
 def p_statement(t):
@@ -205,13 +200,24 @@ def p_statement(t):
 
 def p_blocks(t):
     '''
+    m_block : b_push_context LBRACE variables_decl block_1 RBRACE end_main b_pop_context
     block : b_push_context LBRACE variables_decl block_1 RBRACE b_pop_context
-    block_1 : statement block_1
-            |
-    m_block : b_push_context LBRACE variables_decl block_1 RBRACE mb_pop_context
     l_block : l_push_context LBRACE block_1 RBRACE l_pop_context
     c_block : LBRACE block_1 RBRACE
+    block_1 : statement block_1
+        |
     '''
+
+def p_end_main(t):
+    '''
+    end_main :
+    '''
+    # Add context information for main function in function directory
+    f_name = "main"
+    f_address = global_memory_manager.find_memory_address(f_name)
+    quadruples[0] = Quad("ERA", None, None, f_address)
+    function = function_directory.get_function_from_directory(f_name)
+    function.resources = context_stack.contexts[-1].context_memory_manager.get_resources()
     
 def p_b_push_context(t):
     '''
@@ -223,18 +229,6 @@ def p_b_pop_context(t):
     '''
     b_pop_context :
     '''
-    context_stack.pop()
-
-def p_mb_pop_context(t):
-    '''
-    mb_pop_context :
-    '''
-    # Add context information for main function in function directory
-    function_name = "main"
-    address = global_memory_manager.find_memory_address(function_name)
-    quadruples[0] = Quad("ERA", None, None, address)
-    function = function_directory.get_function_from_directory(function_name)
-    function.resources = context_stack.contexts[-1].context_memory_manager.get_resources()
     context_stack.pop()
     
 def p_l_push_context(t):
@@ -250,8 +244,8 @@ def p_l_pop_context(t):
     '''
     context_stack.pop()
     for _ in range(end_count.pop()):
-        address = constant_memory_manager.find_memory_address(quadruples.instr_ptr)
-        quadruples[end_jumps.pop()] = Quad("GOTO", None, None, address)
+        instr_address = constant_memory_manager.find_memory_address(quadruples.instr_ptr)
+        quadruples[end_jumps.pop()] = Quad("GOTO", None, None, instr_address)
 
 def p_conditional(t):
     '''
@@ -260,8 +254,8 @@ def p_conditional(t):
     last_jump = jumps.pop()
     # Modify the quadruple associated with the last jump to point to the current instruction pointer
     quad = quadruples[last_jump]
-    address = constant_memory_manager.find_memory_address(quadruples.instr_ptr)
-    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, address)
+    instr_address = constant_memory_manager.find_memory_address(quadruples.instr_ptr)
+    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, instr_address)
 
 def p_conditional_1(t):
     '''
@@ -274,14 +268,14 @@ def p_conditional_np1(t):
     '''
     conditional_np1 :
     '''
-    type, address = data_processor.process_data(t[-1])
+    e_type, e_address = DataHelper.process_constant_or_variable(t[-1])
     # Check that the conditional expression is boolean
-    if type != "bool":
+    if e_type != "bool":
         raise_program_error(ProgramErrorType.TYPE_MISMATCH, t.lineno(0), "Expression should be boolean")
     # Save current instruction pointer as a jump target for the GOTOFs
     jumps.append(quadruples.instr_ptr)
-    # Add a GOTOF quadruple with the conditional address
-    quadruples.add_quad(Quad("GOTOF", address, None, None))
+    # Add a GOTOF quadruple with the expression address
+    quadruples.add_quad("GOTOF", e_address, None, None)
     
 def p_conditional_np2(t):
     '''
@@ -292,25 +286,25 @@ def p_conditional_np2(t):
     # Increase the count of pending end jumps
     end_count[-1] += 1
     # Add a GOTO quadruple to ELSEIF conditional
-    quadruples.add_quad(Quad("GOTO", None, None, None))
+    quadruples.add_quad("GOTO", None, None, None)
     # Update the value of the previous GOTOF to point to the current instruction pointer
     last_jump = jumps.pop()
     quad = quadruples[last_jump]
-    address = constant_memory_manager.find_memory_address(quadruples.instr_ptr)
-    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, address)
+    instr_address = constant_memory_manager.find_memory_address(quadruples.instr_ptr)
+    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, instr_address)
 
 def p_conditional_np3(t):
     '''
     conditional_np3 :
     '''
     # Add a GOTO quadruple to the ELSE conditional
-    quadruples.add_quad(Quad("GOTO", None, None, None))
+    quadruples.add_quad("GOTO", None, None, None)
     # Update the value of the previous GOTOF to point to the current instruction pointer
     last_jump = jumps.pop()
     jumps.append(quadruples.instr_ptr - 1)
     quad = quadruples[last_jump]
-    address = constant_memory_manager.find_memory_address(quadruples.instr_ptr)
-    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, address)
+    instr_address = constant_memory_manager.find_memory_address(quadruples.instr_ptr)
+    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, instr_address)
 
 def p_write(t):
     '''
@@ -322,11 +316,14 @@ def p_write(t):
     for elem in elements:
         # Print a constant
         if type(elem) == tuple:
-            quadruples.add_quad(Quad("PRINT", None, None, elem[1]))
+            c_address = elem[1]
+            if c_address == None:
+                raise_program_error(ProgramErrorType.UNSUPPORTED_OPERATION, t.lineno(1), "A void function cannot be called inside a print statement")
+            quadruples.add_quad("PRINT", None, None, c_address)
         # Print a variable
         elif type(elem) == Variable:
-            address = elem.address
-            quadruples.add_quad(Quad("PRINT", None, None, address))
+            v_address = elem.address
+            quadruples.add_quad("PRINT", None, None, v_address)
 
 def p_read(t):
     '''
@@ -335,8 +332,8 @@ def p_read(t):
     variable = t[3]
     if variable is None:
         raise_program_error(ProgramErrorType.UNDECLARED_IDENTIFIER, t.lineno(1), f"The variable '{t[3]}' has not been declared")
-    address = variable.address
-    quadruples.add_quad(Quad("READ", None, None, address))
+    v_address = variable.address
+    quadruples.add_quad("READ", None, None, v_address)
 
 def p_l_while(t):
     '''
@@ -345,12 +342,12 @@ def p_l_while(t):
     last_jump = jumps.pop()
     second_last_jump = jumps.pop()
     # Add GOTO to return to the beginning of the loop
-    address = constant_memory_manager.find_memory_address(second_last_jump)
-    quadruples.add_quad(Quad("GOTO", None, None, address))
+    instr_address = constant_memory_manager.find_memory_address(second_last_jump)
+    quadruples.add_quad("GOTO", None, None, instr_address)
     quad = quadruples[last_jump]
     # Update GOTO at the end of the loop to point to the current instruction
-    address = constant_memory_manager.find_memory_address(quadruples.instr_ptr)
-    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, address)
+    instr_address = constant_memory_manager.find_memory_address(quadruples.instr_ptr)
+    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, instr_address)
 
 def p_l_while_np1(t):
     '''
@@ -366,22 +363,21 @@ def p_l_for(t):
     last_jump = jumps.pop()
     first_jump = jumps.pop()
     # Look for constant 1 or save it
-    value = 1
-    one_address = constant_memory_manager.find_memory_address(value)
+    c_address = constant_memory_manager.find_memory_address(1)
     # Add one to the loop variable
-    left_type, left_address = data_processor.process_data(t[2])
-    operation_type = SemanticCube().get_result_type(left_type, "+", "int")
+    left_type, left_address = DataHelper.process_constant_or_variable(t[2])
+    operation_type = SemanticCube.get_result_type(left_type, "+", "int")
     if operation_type == "TypeMismatch":
         raise_program_error(ProgramErrorType.TYPE_MISMATCH, t.lineno(1), "Operand does not match data type")
-    address = global_memory_manager.reserve_space(operation_type)
-    quadruples.add_quad(Quad("+", left_address, one_address, address))
-    quadruples.add_quad(Quad("=", address, one_address, left_address))
+    result_address = global_memory_manager.reserve_space(operation_type)
+    quadruples.add_quad("+", left_address, c_address, result_address)
+    quadruples.add_quad("=", result_address, c_address, left_address)
     # Update quadruples
-    address = constant_memory_manager.find_memory_address(first_jump)
-    quadruples.add_quad(Quad("GOTO", None, None, address))
+    instr_address = constant_memory_manager.find_memory_address(first_jump)
+    quadruples.add_quad("GOTO", None, None, instr_address)
     quad = quadruples[last_jump]
-    address = constant_memory_manager.find_memory_address(quadruples.instr_ptr)
-    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, address)
+    instr_address = constant_memory_manager.find_memory_address(quadruples.instr_ptr)
+    quadruples[last_jump] = Quad(quad.operator, quad.left_address, None, instr_address)
 
 def p_l_for_np1(t):
     '''
@@ -402,15 +398,15 @@ def p_l_for_np2(t):
     l_for_np2 :
     '''
     left_name = t[-3].name
-    left_type, left_address = data_processor.process_data(t[-3])
-    right_type, right_address = data_processor.process_data(t[-1])
+    left_type, left_address = DataHelper.process_constant_or_variable(t[-3])
+    right_type, right_address = DataHelper.process_constant_or_variable(t[-1])
     # Determine the result type based on the left and right types
-    operation_type = SemanticCube().get_result_type(left_type, "=", right_type)
+    operation_type = SemanticCube.get_result_type(left_type, "=", right_type)
     if operation_type == "TypeMismatch":
         raise_program_error(ProgramErrorType.TYPE_MISMATCH, t.lineno(1), "Operand does not match data type")
     # Make sure the element to assign value to is a variable that exists in the context
     if left_name is not None and context_stack.check_variable_exists(left_name):
-        quadruples.add_quad(Quad("=", right_address, None, left_address))
+        quadruples.add_quad("=", right_address, None, left_address)
         t[0] = (operation_type, left_address)
     # Save the instruction pointer for later use in jumps
     jumps.append(quadruples.instr_ptr)
@@ -419,18 +415,18 @@ def p_l_for_np3(t):
     '''
     l_for_np3 :
     '''
-    left_type, left_address = data_processor.process_data(t[-6])
-    right_type, right_address = data_processor.process_data(t[-1])
+    left_type, left_address = DataHelper.process_constant_or_variable(t[-6])
+    right_type, right_address = DataHelper.process_constant_or_variable(t[-1])
     # Determine the result type based on the left and right types
-    operation_type = SemanticCube().get_result_type(left_type, "<", right_type)
+    operation_type = SemanticCube.get_result_type(left_type, "<", right_type)
     if operation_type == "TypeMismatch":
         raise_program_error(ProgramErrorType.TYPE_MISMATCH, t.lineno(1), "Operand does not match data type")
     # Reserve a temporary space to store the result
-    address = temporal_memory_manager.reserve_space(operation_type)
-    quadruples.add_quad(Quad("<", left_address, right_address, address))
+    result_address = temporal_memory_manager.reserve_space(operation_type)
+    quadruples.add_quad("<", left_address, right_address, result_address)
     # Save the instruction pointer of the GOTOF quadruple for later use
     jumps.append(quadruples.instr_ptr)
-    quadruples.add_quad(Quad("GOTOF", address, None, None))
+    quadruples.add_quad("GOTOF", result_address, None, None)
 
 def p_f_call(t):
     '''
@@ -450,29 +446,29 @@ def p_f_call(t):
     # Check if amount of parameters matches amount of arguments
     if len(f_params) != len(f_args):
         raise_program_error(ProgramErrorType.MISSING_REQUIRED_ARGUMENT, t.lineno(1), f"The amount of call arguments does not match the amount of parameters for function '{f_name}'")
-    quadruples.add_quad(Quad("ERA", None, None, function.address))
+    quadruples.add_quad("ERA", None, None, function.address)
     # Process each parameter and argument pair
     for param, arg in zip(f_params, f_args):
         p = param
-        a_type, a_address = data_processor.process_data(arg)
+        a_type, a_address = DataHelper.process_constant_or_variable(arg)
         # Check that parameter and argument match types
         if p.type != a_type and not (p.type == "float" and a_type == "int"):
             raise_program_error(ProgramErrorType.TYPE_MISMATCH, t.lineno(1), f"One or more call arguments in function '{f_name}' do not match the parameter types")
-        quadruples.add_quad(Quad("PARAM", a_address, None, p.address))
-    quadruples.add_quad(Quad("GOSUB", None, None, function.address))
+        quadruples.add_quad("PARAM", a_address, None, p.address)
+    quadruples.add_quad("GOSUB", None, None, function.address)
     if function.return_type != "void":
-        # Generate assignment quadruple for return value
-        r_address = temporal_memory_manager.reserve_space(function.return_type)
-        quadruples.add_quad(Quad("=", function.return_address, None, r_address))
+        # Generate assignment quadruple to store return value
+        return_address = temporal_memory_manager.reserve_space(function.return_type)
+        quadruples.add_quad("=", function.return_address, None, return_address)
     else:
-        r_address = function.return_address
-    t[0] = (function.return_type, r_address)
+        return_address = function.return_address
+    t[0] = (function.return_type, return_address)
 
 def p_return(t):
     '''
     return : RETURN expression
     '''
-    expr_type, expr_address = data_processor.process_data(t[2])
+    expr_type, expr_address = DataHelper.process_constant_or_variable(t[2])
     # Check that return statement is inside a function
     try:
         f_name = function_stack[-1]
@@ -487,28 +483,27 @@ def p_return(t):
         raise_program_error(ProgramErrorType.UNSUPPORTED_OPERATION, t.lineno(1), f"A return statement cannot be used inside function '{f_name}' because it is of type void")
     # Check that the type of the expr returned matches the expected type
     if function.return_address is not None and expr_type == function.return_type:
-        quadruples.add_quad(Quad("=", expr_address, None, function.return_address))
-        quadruples.add_quad(Quad("ENDFUNC", None, None, None))
-        function.return_bool = True
+        quadruples.add_quad("=", expr_address, None, function.return_address)
+        quadruples.add_quad("ENDFUNC", None, None, None)
+        function.return_present = True
     else:
         raise_program_error(ProgramErrorType.RETURN_TYPE_MISMATCH, t.lineno(1), f"The item returned for the function '{f_name}' does not match its expected return type")
 
 def p_function(t):
     '''
-    function : function_t function_p function_np1 block
-             | function_v function_p function_np1 block
+    function : function_t function_p function_np1 block b_pop_context
+             | function_v function_p function_np1 block b_pop_context
     '''
     f_name = function_stack.pop()
     function = function_directory.get_function_from_directory(f_name)
     # Check if a return statement is missing for non-void functions
-    if function.return_type != "void" and not function.return_bool:
+    if function.return_type != "void" and not function.return_present:
         raise_program_error(ProgramErrorType.RETURN_STATEMENT_MISSING, t.lineno(0), f"The function named '{f_name}' is missing a return statement")
     function.resources = temporal_memory_manager.get_resources()
     # Add ENDFUNC quad for void functions
     if function.return_type == "void":
-        quadruples.add_quad(Quad("ENDFUNC", None, None, None))
+        quadruples.add_quad("ENDFUNC", None, None, None)
     temporal_memory_manager.clear_memory_values()
-    context_stack.pop()
 
 def p_function_p(t):
     '''
@@ -534,9 +529,9 @@ def p_function_np1(t):
     else:
         return_address = global_memory_manager.reserve_space(f_type)
     # Add function to memory, function directory, and the context stack
-    f_context = Context("Function", temporal_memory_manager)
     f_address = global_memory_manager.find_memory_address(f_name)
-    function = function_directory.add_function_to_directory(f_name, f_type, return_address, f_address, f_context)
+    function = function_directory.add_function_to_directory(f_name, f_address, f_type, return_address)
+    f_context = Context("Function", temporal_memory_manager)
     context_stack.push(f_context)
     # Update function parameters
     for p_type, p_name in f_params:
@@ -603,7 +598,7 @@ def p_variables(t):
               | VAR ID COLON variables_1 SEMICOLON
     '''
     # For simple data types
-    if data_processor.check_type_simple(t[2]):
+    if DataHelper.check_type_simple(t[2]):
         v_type = t[2]
         variables = t[4]
         for var in variables:
@@ -614,14 +609,15 @@ def p_variables(t):
                 context_stack.contexts[-1].add_variable_to_context(var, v_type)
             # Check if it's an array variable
             else:
-                if context_stack.contexts[-1].check_variable_exists(var[0]):
-                    raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(1), f"There is already a variable named '{var[0]}' in the directory")
+                v_name = var[0]
+                if context_stack.contexts[-1].check_variable_exists(v_name):
+                    raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(1), f"There is already a variable named '{v_name}' in the directory")
                 array_manager = ArrayManager()
                 for _, base_ad in var[1]:
-                    val = constant_memory_manager[base_ad]
-                    array_manager.add_dimension(val)
+                    value = constant_memory_manager[base_ad]
+                    array_manager.add_dimension(value)
                 array_manager.update_dimension()
-                context_stack.contexts[-1].add_variable_to_context(var[0], v_type, array_manager)
+                context_stack.contexts[-1].add_variable_to_context(v_name, v_type, array_manager)
     # For class objects
     else:
         c_name = t[2]
@@ -700,34 +696,33 @@ def p_var(t):
             upper_lim = constant_memory_manager.find_memory_address(dim.upper_lim)
             m = constant_memory_manager.find_memory_address(dim.m)
             # Add VER quadruple to check if the index is within bounds
-            quadruples.add_quad(Quad("VER", p_address, lower_lim, upper_lim))
+            quadruples.add_quad("VER", p_address, lower_lim, upper_lim)
             # If it's the first dimension of the array
             if i > 0:
                 t1 = addresses.pop()
                 t2 = addresses.pop()
                 t3 = temporal_memory_manager.reserve_space("int")
-                quadruples.add_quad(Quad("+", t2, t1, t3))
+                quadruples.add_quad("+", t2, t1, t3)
                 addresses.append(t3)
             # If it's not the last dimension of the array
             if i < len(array_manager.dimensions) - 1:
                 t1 = temporal_memory_manager.reserve_space("int")
                 # S * m
-                quadruples.add_quad(Quad("*", addresses.pop(), m, t1))
+                quadruples.add_quad("*", addresses.pop(), m, t1)
                 addresses.append(t1)
         # Add the address of index value and base address, and store the result in t1
         base_address = constant_memory_manager.find_memory_address(variable.address)
         t1 = temporal_memory_manager.reserve_space("int")
-        quadruples.add_quad(Quad("+", addresses.pop(), base_address, t1))
+        quadruples.add_quad("+", addresses.pop(), base_address, t1)
         # Create a pointer quad to store t1 in t2
         t2 = temporal_memory_manager.reserve_space("ptr")
-        quadruples.add_quad(Quad("PTR", t1, None, t2))
+        quadruples.add_quad("PTR", t1, None, t2)
         t[0] = Variable(variable.name, variable.type, t2)
 
 def p_class(t):
     '''
-    class : CLASS ID class_np1 LBRACE class_attributes class_np2 RBRACE SEMICOLON
+    class : CLASS ID class_np1 LBRACE class_attributes class_np2 RBRACE SEMICOLON b_pop_context
     '''
-    context_stack.pop()
 
 def p_class_np1(t):
     '''
@@ -753,7 +748,7 @@ def p_class_np2(t):
     for atr in attributes:
         a_type, a_name = atr
         # Check if the attribute type is of simple type
-        if data_processor.check_type_simple(a_type):
+        if DataHelper.check_type_simple(a_type):
             if context_stack.check_variable_exists(a_name):
                 raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(0), f"There is already an attribute named '{a_name}' in the directory")
             # Add attribute to the current context in the context stack
@@ -763,30 +758,30 @@ def p_int_const(t):
     '''
     int_const : INT_CONST
     '''
-    address = constant_memory_manager.find_memory_address(int(t[1]))
-    t[0] = ("int", address)
+    c_address = constant_memory_manager.find_memory_address(int(t[1]))
+    t[0] = ("int", c_address)
 
 def p_float_const(t):
     '''
     float_const : FLOAT_CONST
     '''
-    address = constant_memory_manager.find_memory_address(float(t[1]))
-    t[0] = ("float", address)
+    c_address = constant_memory_manager.find_memory_address(float(t[1]))
+    t[0] = ("float", c_address)
 
 def p_string_const(t):
     '''
     string_const : STRING_CONST
     '''
-    address = constant_memory_manager.find_memory_address(str(t[1]))
-    t[0] = ("string", address)
+    c_address = constant_memory_manager.find_memory_address(t[1])
+    t[0] = ("string", c_address)
 
 def p_bool_const(t):
     '''
     bool_const : TRUE
                | FALSE
     '''
-    address = constant_memory_manager.find_memory_address(str(t[1]))
-    t[0] = ("bool", address)
+    c_address = constant_memory_manager.find_memory_address(t[1])
+    t[0] = ("bool", c_address)
     
 def p_assignment(t):
     '''
@@ -794,29 +789,30 @@ def p_assignment(t):
                | var ASSIGNOP expression
     '''
     left_name = t[1].name
-    left_type, left_address = data_processor.process_data(t[1])
-    right_type, right_address = data_processor.process_data(t[3])
+    left_type, left_address = DataHelper.process_constant_or_variable(t[1])
+    right_type, right_address = DataHelper.process_constant_or_variable(t[3])
     # Determine the result type based on the left and right types
-    operation_type = SemanticCube().get_result_type(left_type, t[2], right_type)
+    operation_type = SemanticCube.get_result_type(left_type, t[2], right_type)
     if operation_type == "TypeMismatch":
             raise_program_error(ProgramErrorType.TYPE_MISMATCH, t.lineno(1), "Operand does not match data type")
     # If it's an object being assigned to another object
-    if not data_processor.check_type_simple(left_type) or not data_processor.check_type_simple(right_type):
+    if not DataHelper.check_type_simple(left_type) or not DataHelper.check_type_simple(right_type):
         right_name = t[3].name
-        # Make sure that both objects exist in the context
+        # Make sure that both objects exist in any context
         if left_name is not None and right_name is not None and context_stack.check_variable_exists(left_name) and context_stack.check_variable_exists(right_name):
-            variable_table = context_stack.contexts[-1].variable_table
-            left_addresses = variable_table.get_variable_addresses_from_substring(f"{left_name}.")
-            right_addresses = variable_table.get_variable_addresses_from_substring(f"{right_name}.")
+            left_context = context_stack.get_context_from_name(left_name)
+            right_context= context_stack.get_context_from_name(right_name)
+            left_addresses = left_context.variable_table.get_attribue_addresses_from_name(f"{left_name}.")
+            right_addresses = right_context.variable_table.get_attribue_addresses_from_name(f"{right_name}.")
             # Generate assignment quadruples for each attribute
             for left_address, right_address in zip(left_addresses, right_addresses):
-                quadruples.add_quad(Quad("=", right_address, None, left_address))
-            t[0] = (context_stack.contexts[-1].variable_table.get_variable_from_name(left_name))
+                quadruples.add_quad("=", right_address, None, left_address)
+            t[0] = (left_context.get_variable_from_name(left_name))
     # If it's an expression being assigned to a variable
     else:
         # Make sure the element to assign the value to is a variable that exists in the context
         if left_name is not None and context_stack.check_variable_exists(left_name):
-            quadruples.add_quad(Quad("=", right_address, None, left_address))
+            quadruples.add_quad("=", right_address, None, left_address)
             t[0] = (operation_type, left_address)
 
 def p_expr_unique(t):
@@ -847,22 +843,22 @@ def p_expr_complex(t):
     term : term TIMES factor
          | term DIVIDE factor
     '''
-    left_type, left_address = data_processor.process_data(t[1])
-    right_type, right_address = data_processor.process_data(t[3])
+    left_type, left_address = DataHelper.process_constant_or_variable(t[1])
+    right_type, right_address = DataHelper.process_constant_or_variable(t[3])
     # Determine the result type based on the left and right types
-    operation_type = SemanticCube().get_result_type(left_type, t[2], right_type)
+    operation_type = SemanticCube.get_result_type(left_type, t[2], right_type)
     if operation_type == "TypeMismatch":
         raise_program_error(ProgramErrorType.TYPE_MISMATCH, t.lineno(1), "Operand does not match data type")
     # Reserve a temporary space to store the result
-    address = temporal_memory_manager.reserve_space(operation_type)
+    result_address = temporal_memory_manager.reserve_space(operation_type)
     # Add the quadruple for the operation
-    quadruples.add_quad(Quad(t[2], left_address, right_address, address))
-    t[0] = (operation_type, address)
+    quadruples.add_quad(t[2], left_address, right_address, result_address)
+    t[0] = (operation_type, result_address)
 
 # Syntax error
 def p_error(t):
     raise_program_error(ProgramErrorType.SYNTAX_ERROR, t.lineno, f"Invalid syntax in value '{t.value}'")
-    
+
 def get_data_to_compiler():
     data: list[str] = []
     d_temp = "--Global Memory--"

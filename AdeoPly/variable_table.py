@@ -1,7 +1,21 @@
 from array_manager import ArrayManager
-from typing import Optional
+from typing import List, Optional
 
 class Variable:
+    """
+    The Variable class represents a variable in the program.
+
+    Attributes:
+        name (str): The name of the variable.
+        type (str): The type of the variable.
+        address (int): The memory address of the variable.
+        array_manager (Optional[ArrayManager]): The array manager associated with the variable, if it is an array.
+
+    Methods:
+        __str__() -> str:
+            Return a string representation of the Variable object.
+    """
+
     def __init__(self, name: str, type: str, address: int, array_manager: Optional[ArrayManager] = None):
         self.name = name
         self.type = type
@@ -9,50 +23,112 @@ class Variable:
         self.array_manager = array_manager
 
     def __str__(self) -> str:
-        return f"{self.name},{self.type},{self.address}"
+        """
+        Return a string representation of the Variable object.
+
+        Returns:
+            str: The string representation of the Variable object.
+        """
+        return f"{self.name}, {self.address}, {self.type}"
 
 class VariableTable:
-    def __init__(self) -> None:
+    """
+    The VariableTable class stores the variables in the program.
+
+    Attributes:
+        variables (dict): A dictionary of variables with their names as keys.
+
+    Methods:
+        add_variable(v_name: str, v_type: str, address: int = 0, array_manager: Optional[ArrayManager] = None) -> Variable:
+            Add a new variable to the table.
+        get_variable_from_name(v_name: str) -> Variable:
+            Get a variable from the table by name.
+        get_attribute_addresses_from_name(o_name: str) -> List[int]:
+            Get the memory addresses of variables whose names contain the given substring.
+        check_variable_exists(v_name: str) -> bool:
+            Check if a variable exists in the table based on its name.
+        __str__() -> str:
+            Return a string representation of the VariableTable object.
+    """
+    def __init__(self):
         self.variables = {}
 
-    # Add a new variable to the table
-    def add_variable(self, name: str, type: str, address: int = 0, array_manager: Optional[ArrayManager] = None) -> Variable:
-        variable = Variable(name, type, address, array_manager)
-        self.variables[name] = variable
+    def add_variable(self, v_name: str, v_type: str, address: int = 0, array_manager: Optional[ArrayManager] = None) -> Variable:
+        """
+        Add a new variable to the table.
+
+        Parameters:
+            v_name (str): The name of the variable.
+            v_type (str): The type of the variable.
+            address (int): The memory address of the variable - Defaults to 0.
+            array_manager (Optional[ArrayManager]): The array associated with the variable - Defaults to None.
+
+        Returns:
+            Variable: The Variable object that was added to the table.
+        """
+        variable = Variable(v_name, v_type, address, array_manager)
+        self.variables[v_name] = variable
         return variable
 
-    # Get a variable from an address
-    def get_variable_from_address(self, address: int) -> Variable:
-        for variable in self.variables.values():
-            if variable.address == address:
-                return variable
-        raise ValueError(f"The variable with the address '{address}' does not exist.")
+    def get_variable_from_name(self, v_name: str) -> Variable:
+        """
+        Get a variable from the table by name.
 
-    # Get a variable from a variable name
-    def get_variable_from_name(self, name: str) -> Variable:
-        for variable in self.variables.values():
-            if variable.name == name:
-                return variable
-        raise ValueError(f"The variable with the name '{name}' does not exist.")
+        Parameters:
+            v_name (str): The name of the variable.
 
-    def get_variable_addresses_from_substring(self, substring: str):
+        Returns:
+            Variable: The Variable object corresponding to the given name.
+        """
+        for variable in self.variables.values():
+            if variable.name == v_name:
+                return variable
+        raise ValueError(f"The variable with the name '{v_name}' does not exist.")
+
+    def get_attribue_addresses_from_name(self, o_name: str) -> List[int]:
+        """
+        Get the memory addresses of variables whose names contain the given substring. Useful for finding attributes of an object.
+
+        Parameters:
+            o_name (str): The object name followed by a '.' (ex. object1.)
+
+        Returns:
+            List[int]: A list of memory addresses of the attributes of an object.
+        """
         addresses = []
         for variable in self.variables.values():
-            if substring in variable.name:
+            if o_name in variable.name:
                 addresses.append(variable.address)
         return addresses
 
-    # Check if a variable exists from its name
-    def check_variable_exists(self, name: str) -> bool:
-        return name in self.variables
+    def check_variable_exists(self, v_name: str) -> bool:
+        """
+        Check if a variable exists in the table based on its name.
 
+        Parameters:
+            v_name (str): The name of the variable.
+
+        Returns:
+            bool: True or False depending on if the variable exists.
+        """
+        return v_name in self.variables
+    
     def __str__(self) -> str:
-        addresses = [str(value.address) for value in self.variables.values()]
-        var = "(" + ",".join(addresses) + ")"
-        return var
+        """
+        Return a string representation of the VariableTable object.
 
-    # DELETE: Print for debugging
-    def print(self) -> None:
-        print("\n---- Variable Table ----")
-        for value in self.variables.values():
-            print(value)
+        Returns:
+            str: The string representation of the VariableTable object.
+        """
+        output = ""
+        for variable in self.variables.values():
+            output += str(variable) + "\n"
+        return output
+
+    def print(self):
+        """
+        Print the variables in the variable table.
+        """
+        print("\n--Variable Table--")
+        for variable in self.variables.values():
+            print(variable)

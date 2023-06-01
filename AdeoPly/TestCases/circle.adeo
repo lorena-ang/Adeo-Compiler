@@ -1,0 +1,88 @@
+Class Circle
+{
+    string: color,
+    float: radius,
+    float: area,
+    float: circumference
+};
+
+float function calculateArea(float radius)
+{
+    var float: radius_square;
+    radius_square = radius * radius;
+    return 3.14 * radius_square;
+}
+
+float function calculateCircumference(float radius)
+{
+    return 2 * 3.14 * radius;
+}
+
+string function compareAreas(float area1, float area2)
+{
+    if (area1 > area2) 
+    {
+        return "area1";
+    }
+    elseif (area2 > area1)
+    {
+        return "area2";
+    }
+    else
+    {
+        return "area3";
+    }
+}
+
+void function printBiggerArea(float area1, float area2)
+{
+    var string: biggerArea;
+
+    biggerArea = compareAreas(area1, area2);
+    
+    if (biggerArea == "area1")
+    {
+        print("\nCircle 1 has a larger area.\n");
+    }
+    elseif (biggerArea == "area2")
+    {
+        print("\nCircle 2 has a larger area.\n");
+    }
+    else
+    {
+        print("\nCircle 1 and Circle 2 have the same area.\n");
+    }
+}
+
+main()
+{
+    var Circle: circle1, circle2, circle3;
+
+    print("Enter the color of Circle 1: ");
+    read(circle1.color);
+    print("Enter the radius of Circle 1: ");
+    read(circle1.radius);
+
+    print("Enter the color of Circle 2: ");
+    read(circle2.color);
+    print("Enter the radius of Circle 2: ");
+    read(circle2.radius);
+
+    circle1.area = calculateArea(circle1.radius);
+    circle1.circumference = calculateCircumference(circle1.radius);
+
+    circle2.area = calculateArea(circle2.radius);
+    circle2.circumference = calculateCircumference(circle2.radius);
+
+    print("\nCircle 1\n");
+    print("Color: ", circle1.color, "\n");
+    print("Radius: ", circle1.radius, "\n");
+    print("Area: ", circle1.area, "\n");
+
+    print("\nCircle 2\n");
+    print("Color: ", circle2.color, "\n");
+    print("Radius: ", circle2.radius, "\n");
+    print("Area: ", circle2.area, "\n");
+
+    printBiggerArea(circle1.area, circle2.area);
+}

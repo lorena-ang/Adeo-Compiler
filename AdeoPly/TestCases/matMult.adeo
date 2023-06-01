@@ -1,0 +1,86 @@
+var int: size_rows, size_cols, mat1[4][4], mat2[4][4], matRes[4][4];
+var int: i, j, k;
+
+void function initializeMatrixes()
+{
+    var int: num;
+
+    num = 1;
+    
+    for i = 0 to size_rows do
+    {
+        for j = 0 to size_cols do
+        {
+            mat1[i][j] = num;
+            num = num + 1;
+        }
+    }
+
+    num = size_rows * size_cols;
+
+    for i = 0 to size_rows do
+    {
+        for j = 0 to size_cols do
+        {
+            mat2[i][j] = num;
+            num = num - 1;
+        }
+    }
+}
+
+void function matrixMultiply()
+{
+    for i = 0 to size_rows do
+    {
+        for j = 0 to size_cols do
+        {
+            matRes[i][j] = 0;
+            for k = 0 to size_cols do
+            {
+                matRes[i][j] = matRes[i][j] + (mat1[i][k] * mat2[k][j]);
+            }
+        }
+    }
+}
+
+void function displayMatrixes()
+{
+    for i = 0 to size_rows do
+    {
+        for j = 0 to size_cols do
+        {
+            print(mat1[i][j], " ");
+        }
+        print("\n");
+    }
+    print("\n");
+
+    for i = 0 to size_rows do
+    {
+        for j = 0 to size_cols do
+        {
+            print(mat2[i][j], " ");
+        }
+        print("\n");
+    }
+    print("\n");
+
+    for i = 0 to size_rows do
+    {
+        for j = 0 to size_cols do
+        {
+            print(matRes[i][j], " ");
+        }
+        print("\n");
+    }
+}
+
+main()
+{
+    size_rows = 4;
+    size_cols = 4;
+
+    initializeMatrixes();
+    matrixMultiply();
+    displayMatrixes();
+}
