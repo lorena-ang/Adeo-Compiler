@@ -1,0 +1,97 @@
+Class Dog 
+{
+    string: name,
+    int: age,
+    float: weight
+};
+
+Class Cat
+{
+    string: name,
+    int: age,
+    bool: isSpayed
+};
+
+var Dog: dog3;
+var Cat: cat1;
+var string: names[2];
+var int: ages[2];
+var float: weight[2];
+
+int function calculateHumanAge(int animal, int age)
+{
+    if (animal == 1)
+    {
+        return age * 7;
+    }
+    elseif (animal == 2)
+    {
+        return age * 4;
+    }
+
+    return -1;
+}
+
+void function displayDogDetails(int num, string name, int age, float weight)
+{
+    print("\nDog ", num, "\n");
+    print("Name: ", name, "\n");
+    print("Age: ", age, "\n");
+    print("Age in human years: ", calculateHumanAge(1, age), "\n");
+    print("Weight: ", weight, "\n");
+}
+
+void function displayCatDetails(int num, string name, int age, bool isSpayed)
+{
+    print("\nCat ", num, "\n");
+    print("Name: ", name, "\n");
+    print("Age: ", age, "\n");
+    print("Age in human years: ", calculateHumanAge(2, age), "\n");
+    print("Is Spayed: ", isSpayed, "\n");
+}
+
+main() 
+{
+    var Dog: dog1, dog2;
+    var int: i;
+
+    names[0] = "Spot";
+    names[1] = "Minnie";
+    ages[0] = 5;
+    ages[1] = 1;
+    weight[0] = 4.1;
+    weight[1] = 10;
+
+    for i = 0 to 3 do
+    {
+        if (i == 0)
+        {
+            dog1.name = names[0];
+            dog1.age = ages[0];
+            dog1.weight = weight[0];
+            
+        }
+        elseif (i == 1)
+        {
+            dog2.name = names[1];
+            dog2.age = ages[1];
+            dog2.weight = weight[1];
+        }
+        else
+        {
+            print("There are no more dogs.\n");
+        }
+    }
+
+    displayDogDetails(1, dog1.name, dog1.age, dog1.weight);
+    displayDogDetails(2, dog2.name, dog2.age, dog2.weight);
+
+    dog3 = dog1;
+    displayDogDetails(3, dog3.name, dog3.age, dog3.weight);
+    
+    cat1.name = "Mitchie";
+    cat1.age = dog3.age;
+    cat1.isSpayed = true;
+
+    displayCatDetails(1, cat1.name, cat1.age, cat1.isSpayed);
+}

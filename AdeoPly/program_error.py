@@ -1,10 +1,22 @@
-class ProgramError(Exception):    
+class ProgramError(Exception):
+    """
+    Represents an error that occurs during program execution.
+    
+    Attributes:
+        error_type (str): The type of the error.
+        line_num (int): The line number where the error occurred.
+        description (str): A description of the error.
+    """
+
     def __init__(self, error_type: str, line_num: int, description: str):
         self.error_type = error_type
         self.line_num = line_num
         self.description = description
 
 class ProgramErrorType:
+    """
+    Represents the types of program errors that can occur.
+    """
     ARITHMETIC_EXCEPTION = "ARITHMETIC_EXCEPTION"
     ARRAY_INDEX_OUT_OF_BOUNDS = "ARRAY_INDEX_OUT_OF_BOUNDS"
     INPUT_TYPE_MISMATCH = "INPUT_TYPE_MISMATCH"

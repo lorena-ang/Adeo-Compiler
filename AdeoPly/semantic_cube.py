@@ -8,13 +8,10 @@ class SemanticCube:
     Methods:
         change_to_number(value: str) -> int:
             Convert a type string to its corresponding number representation.
-
         change_to_string(value: int) -> str:
             Convert a number representation to its corresponding type string.
-
         get_result_type(left: str, operation: str, right: str) -> str:
             Get the result type of an operation.
-
         check_operation(left: str, operation: str, right: str) -> bool:
             Check if an operation is valid.
     """
