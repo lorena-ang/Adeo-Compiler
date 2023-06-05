@@ -1,0 +1,11 @@
+--Global Memory--
+0-None
+2000-main
+--Constants--
+--Functions--
+main,void,(0,0,0,0,0),2
+--Quadruples--
+(ERA,None,None,2000)
+(GOSUB,None,None,2000)
+(PRINT,None,None,0)
+(ENDPROG,None,None,None)

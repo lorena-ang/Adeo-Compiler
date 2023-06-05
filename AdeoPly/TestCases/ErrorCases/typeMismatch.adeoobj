@@ -1,0 +1,6 @@
+ADEO COMPILATION ERROR
+typeMismatch.adeo:9 TYPE_MISMATCH at line 9: Operand does not match data type.
+      7 |     s1 = "HELLO\n";
+      8 | 
+-->   9 |     num = s1;
+     10 | }

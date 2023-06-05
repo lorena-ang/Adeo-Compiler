@@ -1,0 +1,9 @@
+var int: i, j;
+
+main()
+{
+    i = 5;
+    j = 0;
+
+    print(i / j);
+}

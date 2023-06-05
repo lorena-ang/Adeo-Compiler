@@ -1,0 +1,7 @@
+ADEO COMPILATION ERROR
+syntaxError.adeo:3 SYNTAX_ERROR at line 3: Invalid syntax in value 'int'.
+      1 | main()
+      2 | {
+-->   3 |     int: i;
+      4 | 
+      5 |     i = 1;

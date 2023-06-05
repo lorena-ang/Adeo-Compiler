@@ -1,0 +1,6 @@
+var int: j;
+
+main()
+{
+    print(i);
+}

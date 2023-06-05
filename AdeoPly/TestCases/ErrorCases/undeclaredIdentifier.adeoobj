@@ -1,0 +1,6 @@
+ADEO COMPILATION ERROR
+undeclaredIdentifier.adeo:5 UNDECLARED_IDENTIFIER at line 5: The variable 'i' has not been declared.
+      3 | main()
+      4 | {
+-->   5 |     print(i);
+      6 | }
