@@ -9,6 +9,8 @@ class Quad:
         return_address (int): The address of the return value.
 
     Methods:
+        __init__(operator: str, left_address: int | None, right_address: int | None, return_address: int):
+            Initialize a new instance of the Quad class.
         __str__() -> str:
             Return a string representation of the quadruple.
     """
@@ -37,12 +39,14 @@ class Quadruples:
         quadruples (list): The list of quadruples.
 
     Methods:
+        __init__():
+            Initialize a new instance of the Quadruples class.
         add_quad(operator: str, left_address: int | None, right_address: int | None, result_address: int | None):
             Adds a new quadruple to the quadruples list and updates the instruction pointer.
-        __getitem__(address: int) -> Quad:
-            Get the quadruple at the specified address.
-        __setitem__(address: int, quad: Quad):
-            Set the quadruple at the specified address.
+        __getitem__(instr: int) -> Quad:
+            Get the quadruple at the specified instruction number.
+        __setitem__(instr: int, quad: Quad):
+            Set the quadruple at the specified instruction number.
         __iter__() -> Quadruples:
             Initialize the iteration from the first instruction.
         __next__() -> Quad:
@@ -71,27 +75,27 @@ class Quadruples:
         quad = Quad(operator, left_address, right_address, result_address)
         self.quadruples.append(quad)
     
-    def __getitem__(self, address: int) -> Quad:
+    def __getitem__(self, instr: int) -> Quad:
         """
-        Get the quadruple at the specified address.
+        Get the quadruple at the specified instruction number.
 
         Parameters:
-            address (int): The address of the quadruple.
+            instr (int): The instruction number of the quadruple.
 
         Returns:
-            Quad: The quadruple at the specified address.
+            Quad: The quadruple at the specified instruction number.
         """
-        return self.quadruples[address]
+        return self.quadruples[instr]
 
-    def __setitem__(self, address: int, quad: Quad):
+    def __setitem__(self, instr: int, quad: Quad):
         """
-        Set the quadruple at the specified address.
+        Set the quadruple at the specified instruction number.
 
         Parameters:
-            address (int): The address of the quadruple.
+            instr (int): The instruction number of the quadruple.
             quad (Quad): The new quadruple.
         """
-        self.quadruples[address] = quad
+        self.quadruples[instr] = quad
     
     def __iter__(self):
         """

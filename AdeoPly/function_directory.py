@@ -56,6 +56,8 @@ class FunctionDirectory:
         functions (dict): A dictionary of functions with their names as keys.
 
     Methods:
+        __init__():
+            Initialize a new instance of the FunctionDirectory class.
         add_function_to_directory(f_name: str, address: int, return_type: str, return_address: int) -> Function:
             Add a function to the function directory.
         get_function_from_directory(f_name: str) -> Function:
@@ -154,6 +156,8 @@ class FunctionDirectoryVM:
         functions (dict): A dictionary of functions with their names as keys.
 
     Methods:
+        __init__():
+            Initialize a new instance of the FunctionDirectoryVM class.
         add_function_to_directory(f_name: str, initial_quad_address: int, resources: Tuple[int, int, int, int]) -> FunctionVM:
             Add a function to the function directory.
         get_function_from_directory(f_name: str) -> FunctionVM:

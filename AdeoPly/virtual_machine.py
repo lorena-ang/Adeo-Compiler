@@ -23,6 +23,8 @@ class VirtualMachine:
         return_value (int | float | str | bool | None): The return value of a function.
 
     Methods:
+        __init__():
+            Initialize a new instance of the VirtualMachine class.
         process_section_data(section_data: dict) -> None:
             Process the sections of data and populate memory, function directory, and quadruples.
         get_memory_manager_type(address: int | None) -> MemoryManager:

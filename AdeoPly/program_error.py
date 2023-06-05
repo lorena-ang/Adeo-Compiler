@@ -6,6 +6,10 @@ class ProgramError(Exception):
         error_type (str): The type of the error.
         line_num (int): The line number where the error occurred.
         description (str): A description of the error.
+        
+     Methods:
+        __init__(error_type: str, line_num: int, description: str):
+            Initialize a new instance of the ProgramError class.
     """
 
     def __init__(self, error_type: str, line_num: int, description: str):

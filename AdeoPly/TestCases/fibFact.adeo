@@ -67,8 +67,10 @@ main()
 {
     var int: num;
 
-	print("Enter number to calculate fibonacci sequence for this amount: ");
+	print("Enter number to calculate sequences for this amount: ");
 	read(num);
+
+    print("Fibonacci:\n");
 
     iterative_fibonacci(num);
 
@@ -78,8 +80,7 @@ main()
     }
     print("\n");
 
-	print("Enter number to calculate factorial sequence for this amount: ");
-	read(num);
+    print("Factorial:\n");
 
 	iterative_factorial(i);
 

@@ -40,7 +40,6 @@ if __name__ == '__main__':
                     virtual_machine.start_execution()
                 except ProgramError as e:
                     # Display execution error
-                    print("\n--------------------")
                     print("ADEO EXECUTION ERROR")
                     print(f"{Path(file_name).name} {e.error_type}: {e.description}.")
     except (EOFError, FileNotFoundError) as e:

@@ -10,7 +10,7 @@ class Class:
 
     Methods:
         __init__(name: str):
-            Initialize a new instance of the Class.
+            Initialize a new instance of the Class class.
     """
     
     def __init__(self, name: str):
@@ -25,6 +25,8 @@ class ClassDirectory:
         classes (dict): A dictionary of classes with their names as keys.
 
     Methods:
+        __init__():
+            Initialize a new instance of the ClassDirectory class.
         add_class_to_directory(c_name: str):
             Add a class to the directory by name.
         get_class_from_directory(c_name: str) -> Class:

@@ -12,6 +12,8 @@ class Variable:
         array_manager (Optional[ArrayManager]): The array manager associated with the variable, if it is an array.
 
     Methods:
+        __init__(name: str, type: str, address: int, array_manager: Optional[ArrayManager] = None):
+            Initialize a new instance of the Variable class.
         __str__() -> str:
             Return a string representation of the Variable object.
     """
@@ -39,6 +41,8 @@ class VariableTable:
         variables (dict): A dictionary of variables with their names as keys.
 
     Methods:
+        __init__():
+            Initialize a new instance of the VariableTable class.
         add_variable(v_name: str, v_type: str, address: int = 0, array_manager: Optional[ArrayManager] = None) -> Variable:
             Add a new variable to the table.
         get_variable_from_name(v_name: str) -> Variable:

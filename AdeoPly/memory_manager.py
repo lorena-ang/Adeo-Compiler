@@ -13,8 +13,8 @@ class TypeSpace(Generic[T]):
         values (List[T | None]): A list to store the values in the type space.
     
     Methods:
-        __init__(self, initial_address: int, resource_size: Optional[int] = None):
-            Initialize a TypeSpace object.
+        __init__(initial_address: int, resource_size: Optional[int] = None):
+            Initialize a new instance of the TypeSpace class.
     """
 
     def __init__(self, initial_address: int, resource_size: Optional[int] = None):
@@ -36,33 +36,33 @@ class MemoryManager:
         ptrs_space (TypeSpace[int | None]): The TypeSpace for pointers.
     
     Methods:
-        __init__(self, start_address: int, resources: Optional[Tuple[int, int, int, int, int]] = None):
-            Initialize a MemoryManager object.
-        add_value_to_typespace(self, typespace: TypeSpace, value: int | None) -> int:
+        __init__(start_address: int, resources: Optional[Tuple[int, int, int, int, int]] = None):
+            Initialize a new instance of the MemoryManager class.
+        add_value_to_typespace(typespace: TypeSpace, value: int | None) -> int:
             Adds a new value to the type space.
-        add_ptr(self, address: int, value: int):
+        add_ptr(address: int, value: int):
             Add a new pointer to the pointer type space.
-        reserve_space(self, v_type: str, size: int = 1) -> int:
+        reserve_space(v_type: str, size: int = 1) -> int:
             Reserves space for a variable that hasn't been assigned yet, only declared.
-        get_typespace_from_address(self, address: int) -> TypeSpace:
+        get_typespace_from_address(address: int) -> TypeSpace:
             Get the TypeSpace object corresponding to a memory address.
-        get_typespace_from_type(self, v_type: str) -> TypeSpace:
+        get_typespace_from_type(v_type: str) -> TypeSpace:
             Get the TypeSpace object corresponding to a variable type.
-        get_type_from_address(self, address: int) -> str:
+        get_type_from_address(address: int) -> str:
             Get the type of a variable based on its memory address.
-        find_memory_address(self, value: int | float | str | bool) -> int:
+        find_memory_address(value: int | float | str | bool) -> int:
             Find the memory address of a value in the memory manager or add it to memory.
-        get_resources(self) -> Tuple[int, int, int, int, int]:
+        get_resources() -> Tuple[int, int, int, int, int]:
             Get the number of resources (values) per type.
-        clear_memory_values(self):
+        clear_memory_values():
             Clear the values stored in the type spaces of the memory manager.
-        __getitem__(self, address: int) -> int | float | str | bool | None:
+        __getitem__(address: int) -> int | float | str | bool | None:
             Get the value at a memory address.
-        __setitem__(self, address: int, value: int):
+        __setitem__(address: int, value: int):
             Set the value at a memory address.
-        __str__(self) -> str:
+        __str__() -> str:
             Return a string representation of the MemoryManager object.
-        print(self, scope: str):
+        print(scope: str):
             Print the memory manager's contents.
     """
 

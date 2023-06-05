@@ -14,15 +14,15 @@ class Context:
         variable_table (VariableTable): The variable table associated with the context.
 
     Methods:
-        __init__(self, scope: str, context_memory_manager: MemoryManager, variable_table: Optional[VariableTable] = None):
-            Initialize a Context object.
-        add_variable_to_context(self, v_name: str, v_type: str, array_manager: Optional[ArrayManager] = None) -> Variable:
+        __init__(scope: str, context_memory_manager: MemoryManager, variable_table: Optional[VariableTable] = None):
+            Initialize a new instance of the Context class.
+        add_variable_to_context(v_name: str, v_type: str, array_manager: Optional[ArrayManager] = None) -> Variable:
             Add a new variable to the context and to the variable table of the context.
-        get_variable_from_name(self, v_name: str) -> Variable:
+        get_variable_from_name(v_name: str) -> Variable:
             Get the information of a variable from its name.
-        check_variable_exists(self, v_name: str) -> bool:
+        check_variable_exists(v_name: str) -> bool:
             Check if a variable exists in this context.
-        __str__(self) -> str:
+        __str__() -> str:
             Get a string representation of the Context object.
     """
 
@@ -96,19 +96,19 @@ class ContextStack:
         contexts (List[Context]): The stack of contexts.
 
     Methods:
-        __init__(self):
-            Initialize a ContextStack object.
-        push(self, context: Context):
+        __init__():
+            Initialize a new instance of the ContextStack class.
+        push(context: Context):
             Push a context onto the context stack.
-        pop(self) -> Context:
+        pop() -> Context:
             Pop a context from the top of the context stack.
-        get_variable_from_context(self, v_name: str) -> Variable:
+        get_variable_from_context(v_name: str) -> Variable:
             Get a variable from any context of the stack.
-        get_context_from_name(self, v_name: str) -> Variable:
+        get_context_from_name(v_name: str) -> Variable:
             Get a context from the stack if the variable with the given name exists in it.
-        check_variable_exists(self, v_name: str) -> bool:
+        check_variable_exists(v_name: str) -> bool:
             Check if a variable exists in any context of the stack.
-        print(self):
+        print():
             Print the contexts in the context stack.
     """
 

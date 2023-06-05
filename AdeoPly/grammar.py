@@ -205,7 +205,7 @@ def p_blocks(t):
     l_block : l_push_context LBRACE block_1 RBRACE l_pop_context
     c_block : LBRACE block_1 RBRACE
     block_1 : statement block_1
-        |
+            |
     '''
 
 def p_end_main(t):
@@ -522,7 +522,7 @@ def p_function_np1(t):
     f_type, f_name = t[-2]
     f_params = t[-1]
     if function_directory.check_function_exists(f_name):
-        raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(0), f"There is already a function named '{f_name}' in the directory")
+        raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(0), f"There is already a function named '{f_name}'. Please choose a different function name")
     # Reserve space for the return value
     if f_type == "void":
         return_address = None
@@ -537,7 +537,7 @@ def p_function_np1(t):
     for p_type, p_name in f_params:
         # Check if another parameter with the same name already exists
         if context_stack.contexts[-1].check_variable_exists(p_name):
-            raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(0), f"There is already a parameter named '{p_name}' in the directory")
+            raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(0), f"There is already a parameter named '{p_name}' in the function '{f_name}'. Please choose a different parameter name")
         variable = context_stack.contexts[-1].add_variable_to_context(p_name, p_type)
         function.parameters.append(Variable(p_name, p_type, variable.address))
     # Save the function name in the function stack
@@ -605,13 +605,13 @@ def p_variables(t):
             # Check if it's a single variable
             if type(var) == str:
                 if context_stack.contexts[-1].check_variable_exists(var):
-                    raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(1), f"There is already a variable named '{var}' in the directory")
+                    raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(1), f"There is already a variable named '{var}'. Please choose a different name")
                 context_stack.contexts[-1].add_variable_to_context(var, v_type)
             # Check if it's an array variable
             else:
                 v_name = var[0]
                 if context_stack.contexts[-1].check_variable_exists(v_name):
-                    raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(1), f"There is already a variable named '{v_name}' in the directory")
+                    raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(1), f"There is already a variable named '{v_name}'. Please choose a different name")
                 array_manager = ArrayManager()
                 for _, base_ad in var[1]:
                     value = constant_memory_manager[base_ad]
@@ -629,7 +629,7 @@ def p_variables(t):
         for var in variables:
             # Check if variable name was already used
             if context_stack.check_variable_exists(var):
-                raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(1), f"There is already a variable named '{var}' in the directory")
+                raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(1), f"There is already a variable named '{var}' in the program. Please choose a different name")
             # Add class variable to the context stack
             context_stack.contexts[-1].add_variable_to_context(var, c_name)
             # Add attributes as variables to the context
@@ -731,7 +731,7 @@ def p_class_np1(t):
     c_name = t[-1]
     # Check if class name was already used
     if class_directory.check_class_exists(c_name):
-        raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(0), f"There is already a class named '{c_name}' in the directory")
+        raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(0), f"There is already a class named '{c_name}'. Please choose a different class name")
     # Add class to the class directory
     class_directory.add_class_to_directory(c_name)
     class_detail = class_directory.get_class_from_directory(c_name)
@@ -743,6 +743,7 @@ def p_class_np2(t):
     '''
     class_np2 :
     '''
+    c_name = t[-4]
     attributes = t[-1]
     # Process each attribute in the class
     for atr in attributes:
@@ -750,7 +751,7 @@ def p_class_np2(t):
         # Check if the attribute type is of simple type
         if DataHelper.check_type_simple(a_type):
             if context_stack.check_variable_exists(a_name):
-                raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(0), f"There is already an attribute named '{a_name}' in the directory")
+                raise_program_error(ProgramErrorType.REDECLARATION_ERROR, t.lineno(0), f"There is already an attribute named '{a_name}' in the class '{c_name}'. Please choose a different attribute name")
             # Add attribute to the current context in the context stack
             context_stack.contexts[-1].add_variable_to_context(a_name, a_type)
 

@@ -23,15 +23,16 @@
 5008-47
 5009-57
 5010-63
-5011-77
-5012-88
+5011-78
+5012-89
 5013-95
 5014-107
 7000-" "
 7001-"\n"
 7002-"Could not calculate iterative fibonacci for that number.\n"
-7003-"Enter number to calculate fibonacci sequence for this amount: "
-7004-"Enter number to calculate factorial sequence for this amount: "
+7003-"Enter number to calculate sequences for this amount: "
+7004-"Fibonacci:\n"
+7005-"Factorial:\n"
 --Functions--
 iterative_fibonacci,void,(5,0,0,2,0),2
 recursive_fibonacci,int,(6,0,0,1,0),26
@@ -112,6 +113,7 @@ main,void,(4,0,0,2,0),71
 (ENDFUNC,None,None,None)
 (PRINT,None,None,7003)
 (READ,None,None,10000)
+(PRINT,None,None,7004)
 (ERA,None,None,2000)
 (PARAM,10000,None,10000)
 (GOSUB,None,None,2000)
@@ -128,8 +130,7 @@ main,void,(4,0,0,2,0),71
 (=,5,5001,0)
 (GOTO,None,None,5011)
 (PRINT,None,None,7001)
-(PRINT,None,None,7004)
-(READ,None,None,10000)
+(PRINT,None,None,7005)
 (ERA,None,None,2002)
 (PARAM,0,None,10000)
 (GOSUB,None,None,2002)

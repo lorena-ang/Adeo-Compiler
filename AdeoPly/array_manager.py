@@ -8,6 +8,8 @@ class Dimension:
         m (int): The m value of the dimension.
 
     Methods:
+        __init__(upper_lim: int = 0, R: int = 0, m: int = 0):
+            Initialize a new instance of the Dimension class.
         __str__() -> str:
             Return a string representation of the Dimension object.
     """
@@ -35,6 +37,8 @@ class ArrayManager:
         size (int): The size of the array.
 
     Methods:
+        __init__():
+            Initialize a new instance of the ArrayManager class.
         add_dimension(upper_lim: int) -> Dimension:
             Add a new dimension node to the array.
         update_dimension():
